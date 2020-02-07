@@ -5,6 +5,7 @@ MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is 
 * [NextFlow](https://www.nextflow.io/)
 
 ## Imports
+*sklearn
 * [pyteomics](https://pyteomics.readthedocs.io/en/latest/)
 * [h5py](https://pypi.org/project/h5py/)
 * [keras](https://keras.io/) [autoencoder tutorial](https://blog.keras.io/building-autoencoders-in-keras.html)
