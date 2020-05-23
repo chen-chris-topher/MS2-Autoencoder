@@ -16,11 +16,13 @@ model = args.model
 path = args.path
 val_data = args.val_data
 
-outdir = join(path, 'models/')
+outdir = join(path, 'models_new/')
 
 f = h5py.File(data, 'r')
 dataset_low = f['low_peaks']
 dataset_high = f['high_peaks']
+print(dataset_high.shape)
+
 if args.val_data:
     g = h5py.File(val_data, 'r')
     X_val = g['low_peaks']
@@ -38,16 +40,16 @@ if model=='conv1d':
 
 elif model=='deepautoencoder':
     autoencoder = ms2_model.model_deep_autoencoder()
-    autoencoder = ms2_model.fit_model(autoencoder, dataset_low, dataset_high)
+    autoencoder = ms2_model.fit_model(autoencoder, dataset_high, dataset_high)
     ms2_model.save_model(autoencoder, join(outdir, 'deepautoencoder/', 'deepautoencoder.h5'))
     ms2_model.save_history(autoencoder.history, join(outdir, 'deepautoencoder/', 'deepautoencoder_history.pickle'))
 
 elif model=='autoencoder':
     autoencoder = ms2_model.model_autoencoder()
     #autoencoder = ms2_model.fit_val_model2(autoencoder, dataset_low, dataset_high)
-    autoencoder = ms2_model.fit_model(autoencoder, dataset_high[:10], dataset_high[:10])
-    ms2_model.save_model(autoencoder, join(outdir, 'autoencoder/', 'autoencoder.h5'))
-    ms2_model.save_history(autoencoder.history, join(outdir, 'autoencoder/', 'autoencoderhistory.pickle'))
+    autoencoder = ms2_model.fit_model(autoencoder, dataset_high, dataset_high)
+    ms2_model.save_model(autoencoder, join(outdir, 'autoencoder/', 'high_high_autoencoder.h5'))
+    ms2_model.save_history(autoencoder.history, join(outdir, 'autoencoder/', 'high_autoencoderhistory.pickle'))
 
 elif model=='variationalautoencoder':
     autoencoder = ms2_model.model_variational_autoencoder()
