@@ -22,8 +22,8 @@ conv1d = args.conv1d
 file_list = ch5.get_file_list(path, data_name)
 
 ch5.stitch_hdf5(file_list, norm=norm, name=name) #data in autoencoder format
-filename = name[:name.rfind('.')] + '_conv1d' + name[name.rfind('.'):]
-ch5.stitch_hdf5_Conv1D(file_list, norm=norm, name=filename) #data in conv1d format
+#filename = name[:name.rfind('.')] + '_conv1d' + name[name.rfind('.'):]
+#ch5.stitch_hdf5_Conv1D(file_list, norm=norm, name=filename) #data in conv1d format
 print('operations complete')
 
 '''
