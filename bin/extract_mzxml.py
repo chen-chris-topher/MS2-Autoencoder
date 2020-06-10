@@ -1,5 +1,6 @@
 from pyteomics import mzxml, auxiliary
 import numpy as np
+import scipy
 
 def read_data(file):
     """
@@ -35,22 +36,26 @@ def find_MS2(data, directory):
     id_list_ms1 = []
     id_list_ms2 = []
     
-    for i in range(0, len(data)):
+    for i in range(0, len(data)): #looping over all scan in the file
         if data[i].get('msLevel') == 2:
-            id_list_ms2.append(i) #int
+            id_list_ms2.append(i) #int 
         elif data[i].get('msLevel') == 1:
             id_list_ms1.append(i) #int
         else:
             print('msLevel error: could not sort dict[%s] msLevel' %(str(i)))
 
-        filename1 = directory + '/id_list_ms1.txt'
-        filename2 = directory + '/id_list_ms2.txt'
-        with open(filename1, 'w') as output:
-            output.write(str(id_list_ms1)) #str in txt files for user review
-        with open(filename2, 'w') as output:
-            output.write(str(id_list_ms2)) #str in txt files for user review
-    print('Generated list of indexes containing MS2 scans to "id_list_ms2.txt"')
+    #creating the files where this list will be stored
+    filename1 = directory + '/id_list_ms1.txt'
+    filename2 = directory + '/id_list_ms2.txt'
+        
+    #writing the data we just pulled out about the position/mslevel of the scans to a text file
+    with open(filename1, 'w') as output:
+        output.write(str(id_list_ms1)) #str in txt files for user review
+    with open(filename2, 'w') as output:
+        output.write(str(id_list_ms2)) #str in txt files for user review
 
+    print('Generated list of indexes containing MS2 scans to "id_list_ms2.txt"')
+    
     return id_list_ms2
 
 def list_retentionTime_MS2(data, id_list_ms2):
@@ -75,34 +80,46 @@ def search_MS2_matches(data, id_list_ms2, rt_tol=0.5, mz_tol=0.01):
     """
     print('Beginning the search')
     match_index_dict = {} #key is integer from id_list_m2; value is list of integers from id_list_ms2
+
     rt_tolerance = rt_tol #retentionTime tolerance for half a minute
     mass_tolerance = mz_tol #mass tolerance for 0.01mZ
+    
+    #WHY THESE PARAMTERS? DOES THIS MAKE SENSE, IS THIS WHY DATA GETS ZERO-ED?
     intensity_tolerance_low = 2 #greater than 2x precursorIntensity from base molecule
     intensity_tolerance_up = 5 #less than 5x precursorIntensity from base molecule
 
-    for k in id_list_ms2:
-        rt_save = float(data[k].get('retentionTime'))
+    
+    for k in id_list_ms2: #looping over the scan numbers associated with MS2 scans
+        rt_save = float(data[k].get('retentionTime')) #all of these look good for getting info out
         mass_save = float(data[k].get('precursorMz')[0].get('precursorMz'))
         intensity_save = float(data[k].get('precursorMz')[0].get('precursorIntensity'))
         id_save = int(data[k].get('id'))
+        
         v_list = []
         redun_check = False #initialize redundancy check boolean as not-redundant
 
+        #need to double check this, not enitrely sure why it's here
         for value in match_index_dict.values():
             for index in range(0, len(value)):
                 if k == value[index]:
                     redun_check = True              
 
         if redun_check != True:
-            for v in id_list_ms2:
+            for v in id_list_ms2: #looping through again looking for a high match
                 rt_dv = data[v].get('retentionTime')
+                
                 if rt_dv <= rt_save + rt_tolerance and rt_dv >= rt_save - rt_tolerance:
+                    
                     mass_dv = data[v].get('precursorMz')[0].get('precursorMz')
                     if mass_dv <= mass_save + mass_tolerance and mass_dv >= mass_save - mass_tolerance:
+                    
                         intensity_dv = data[v].get('precursorMz')[0].get('precursorIntensity')
-                        if intensity_dv <= intensity_save * intensity_tolerance_up and intensity_dv >= intensity_tolerance_low:
+                        
+                        #logic error here now fixed
+                        if intensity_dv >= intensity_save:
                             v_list.append(v)
                             print('Found a match: %s:%r' %(k, v))
+                
                 match_index_dict[id_save] = v_list
             print(id_save, match_index_dict[id_save])
             print('Finished search for dict[%s]' %k)
@@ -117,9 +134,11 @@ def get_match_scans(data, match_index_dict):
     hierarchical dictionary
     """
     processed_dict = {}
-    for key in match_index_dict.keys():
+    #loop through all the ms2 scans
+    for key in match_index_dict.keys(): #key loops through scans
+        
         processed_dict[int(key)] = []
-        for index, i in zip(match_index_dict[key], range(0, len(match_index_dict[key]))):
+        for index, i in zip(match_index_dict[key], range(0, len(match_index_dict[key]))): #where index loops through scans and i loops through samples
             scan = int(data[index].get('id'))
             rt = data[index].get('retentionTime')
             intensity = data[index].get('precursorMz')[0].get('precursorIntensity')
@@ -152,7 +171,7 @@ def bin_array(processed_dict):
             for scan in processed_dict[key][i]:
                 mz_array = processed_dict[key][i][scan].get('mz array')
                 intensity_array = processed_dict[key][i][scan].get('intensity array')
-                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=2000, range=(0, 2000)) #bins are integers range(0,2000)
+                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=200000, range=(0, 2000)) #bins are integers range(0,2000)
                 binned_mz = binned_mz[:-1]
 
                 rt = processed_dict[key][i][scan].get('retentionTime')
@@ -185,7 +204,7 @@ def bin_array2(processed_dict):
             for scan in processed_dict[key][i]:
                 mz_array = processed_dict[key][i][scan].get('mz array')
                 intensity_array = processed_dict[key][i][scan].get('intensity array')
-                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=2000, range=(0, 2000)) #bins are integers range(0,2000)
+                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=200000, range=(0, 2000)) #bins are integers range(0,2000)
                 binned_mz = binned_mz[:-1]
 
                 rt = processed_dict[key][i][scan].get('retentionTime')
@@ -207,13 +226,15 @@ def create_pairs(binned_dict):
     returns list with paired scans
     """
     pairs_list = []
-    for key in binned_dict.keys():
+    for key in binned_dict.keys(): #looping through all binned MS2 scans
         pairs = []
         for i in range(0, len(binned_dict[key])):
-            for j in range(i+1, len(binned_dict[key])):
+            for j in range(i+1, len(binned_dict[key])): 
                 for scan, scan2 in zip(binned_dict[key][i].keys(), binned_dict[key][j].keys()):
-                    pairs.append([binned_dict[key][i][scan], binned_dict[key][j][scan2]])
-                    print(scan, scan2)
+                    if np.count_nonzero(scan) != 0:
+                        if np.count_nonzero(scan2):
+                            pairs.append([binned_dict[key][i][scan], binned_dict[key][j][scan2]])
+                            
         pairs_list.append(pairs)
     print('successfully created pairs for all matched scans')
     return pairs_list
@@ -236,6 +257,7 @@ def arrange_min_max(pairs_list):
         ordered_list.append(pairs)
     len_pairs = len(pairs_list)
     len_ordered = len(ordered_list)
+
     print('length of ordered list %s should be the same as length of pairs list %d' % (len_ordered, len_pairs))
     return ordered_list
 
@@ -247,20 +269,28 @@ def convert_to_ready(ordered_list):
     conversion creates a list with all useful information
     """
     ready_list = []
+    ready_list_2 = []
+    print(ordered_list)
     for i in range(0, len(ordered_list)): #i is at the group/molecule level
         group = []
         for j in range(0, len(ordered_list[i])): #j is at the pairs per molecule level
             pairs = []
+            mz_intensities =[]
             for k in range(0 , len(ordered_list[i][j])): #k is at the scan per pair level
                 rt = ordered_list[i][j][k].get('retentionTime')
                 intensity = ordered_list[i][j][k].get('precursorIntensity')
                 mz = ordered_list[i][j][k].get('precursorMz')
                 mz_intensity_array = np.asarray(ordered_list[i][j][k].get('mz_intensity array'))
-                pairs.append(np.asarray([rt, intensity, mz, mz_intensity_array]))
-            group.append(np.asarray(pairs))
-        ready_list.append(np.asarray(group))
+                
+                mz_intensities.append(mz_intensity_array)
+                pairs.append(np.asarray([rt, intensity, mz]))
+        
+            ready_list.append(np.asarray(pairs))
+            ready_list_2.append(np.asarray(mz_intensities))
+
+        ready_mz=np.asarray(ready_list_2)
         ready_array = np.asarray(ready_list)
-    return ready_array
+    return(ready_array, ready_mz)
 
 #use convert_to_ready2() for creating a training ready file
 def convert_to_ready2(ordered_list):
@@ -271,6 +301,7 @@ def convert_to_ready2(ordered_list):
     conversion makes list ready as training input
     """
     ready_list = []
+
     for i in range(0, len(ordered_list)): #i is at the group/molecule level
         for j in range(0, len(ordered_list[i])): #j is at the pairs per molecule level
             pairs = []
@@ -280,6 +311,30 @@ def convert_to_ready2(ordered_list):
             ready_list.append(np.asarray(pairs))
         ready_array = np.asarray(ready_list)
     return ready_array
+
+def convert_to_ready3(ordered_list):
+    """
+    converts ordered_list into a list of structured DENSE arrays
+    without dictionary keys
+    renders only the DENSE mz_intensity array 
+    conversion makes list ready as training input
+    """
+    ready_list = []
+
+    for i in range(0, len(ordered_list)): #i is at the group/molecule level
+        for j in range(0, len(ordered_list[i])): #j is at the pairs per molecule level
+            pairs = []
+            for k in range(0 , len(ordered_list[i][j])): #k is at the scan per pair level
+                intensity_array = ordered_list[i][j][k].get('intensity array')
+                pairs.append(list(intensity_array))
+
+            ready_list.append(list(pairs))
+        rows, cols, vals = zip(*ready_list)
+        a = scipy.sparse.coo_matrix((vals, (rows, cols)))
+        ready_array = a.A
+    ready_array.todense()
+    return ready_array
+
 
 def output_file(in_dict, directory, match_index=None, processed=None, binned=None, pairs=None, ordered=None):    
     """
@@ -365,14 +420,16 @@ def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):
             output.write(json)
         print('saved dict to "output.json"')
 
-def output_list(in_list, directory, two=None):
+def output_list(in_list, directory, two=None, ready_mass = None):
     import numpy as np
-
     if two == True:
         filename = directory + '/ready_array2.npz'
         np.savez_compressed(filename, in_list)
         print('saved ready_array2 to %s' %filename)
-    
+    elif ready_mass == True:
+        filename = directory + '/ready_mass.npz'
+        np.savez_compressed(filename, in_list)
+        print('saved ready_array to %s' %filename)
     else:
         filename = directory + '/ready_array.npz'
         np.savez_compressed(filename, in_list)

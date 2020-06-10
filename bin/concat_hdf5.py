@@ -4,15 +4,21 @@ import h5py
 
 def extract_npz(filename):
     file = np.load(filename, allow_pickle=True)
-    data = file['arr_0']
+    data = file['arr_0'] 
     return data
+
+def remove_blank_scans(peaks_array):
+    new_peaks_array = []
+    for i in range(0, len(peaks_array)):
+        if np.count_nonzero(i) != 0:
+            new_peaks_array.append(peaks_array[i])
+    return np.array(new_peaks_array)
 
 def normalize_peaks(peaks_array, norm):
     """
     normalizes each array by dividing the array by the max of that array
     """
     from sklearn.preprocessing import normalize
-
     for i in range(0, len(peaks_array)):
         peaks_array[i] = normalize(peaks_array[i], norm=norm)
     return peaks_array
@@ -22,8 +28,8 @@ def split_reshape(data, norm):
     split data into low peak and high peak sets
     outputs shape (len(data), 2000)
     """
-    split_data = np.split(data, 2, axis=1)
-    low_peaks = split_data[0]
+    split_data = np.split(data, 2, axis=1) 
+    low_peaks = split_data[0] 
     low_peaks = normalize_peaks(low_peaks, norm) #normalize
     low_peaks = low_peaks.reshape(len(low_peaks), np.prod(low_peaks.shape[1:]))
     high_peaks = split_data[1]
@@ -55,8 +61,7 @@ def stitch_npz(file_list):
         data = extract_npz(filename)
         data_list.append(data)
 
-    big_data = np.concatenate(data_list, axis=0) #concatenate here is going to take the most RAM
-    print(big_data.shape)
+    big_data = np.concatenate(data_list, axis=0) #concatenate here is going to take the most RAM 
 
     np.savez_compressed('concated_data', big_data)
 
@@ -67,14 +72,15 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
     outputs one hdf5 file with two datasets
     data in datasets will be normalized
     """
+
     with h5py.File(name, 'w') as f: #create empty hdf5 file with two datasets
         dataset = f.create_dataset('low_peaks', 
-                                    shape=(1, 2000), 
-                                    maxshape=(None, 2000),
+                                    shape=(1, 200000), 
+                                    maxshape=(None, 200000),
                                     compression='gzip')
         dataset = f.create_dataset('high_peaks', 
-                                    shape=(1, 2000), 
-                                    maxshape=(None, 2000),
+                                    shape=(1, 200000), 
+                                    maxshape=(None, 200000),
                                     compression='gzip')
         f.close()
 
@@ -84,27 +90,28 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
     for filename in file_list:
         try:
             print('#%r extracting and appending %s to hdf5' %(count, filename))
-            data = extract_npz(filename)
+            data = extract_npz(filename)   
+            
             size = data.shape
             i_curr = size[0] + i_prev
             len_total += i_curr
             count += 1
-
-            low_peaks, high_peaks = split_reshape(data, norm)
-
+            
+            low_peaks, high_peaks = split_reshape(data, norm) 
             with h5py.File(name, 'a') as f:
                 dataset = f['low_peaks'] #append to low_peaks dataset
-                dataset.resize((len_total, 2000))
+                dataset.resize((len_total, 200000))
                 dataset[i_prev:i_curr, :] = low_peaks
 
                 dataset = f['high_peaks'] #append to high_peaks dataset
-                dataset.resize((len_total, 2000))
+                dataset.resize((len_total, 200000))
                 dataset[i_prev:i_curr, :] = high_peaks
 
                 f.close()
             i_prev = i_curr
             print('length at %s' %len_total)
         except:
+            print("Failed to reshape data into hdf5")
             pass
     print('saved all data to %s' % name)
 
@@ -116,12 +123,12 @@ def stitch_hdf5_Conv1D(file_list, norm, name='big_data_conv1d.hdf5'):
     """
     with h5py.File(name, 'w') as f: #create empty hdf5 file with two datasets
         dataset = f.create_dataset('low_peaks', 
-                                    shape=(1, 2000, 1), 
-                                    maxshape=(None, 2000, 1),
+                                    shape=(1, 20000, 1), 
+                                    maxshape=(None, 20000, 1),
                                     compression='gzip')
         dataset = f.create_dataset('high_peaks', 
-                                    shape=(1, 2000, 1), 
-                                    maxshape=(None, 2000, 1),
+                                    shape=(1, 20000, 1), 
+                                    maxshape=(None, 20000, 1),
                                     compression='gzip')
         f.close()
 
@@ -132,7 +139,7 @@ def stitch_hdf5_Conv1D(file_list, norm, name='big_data_conv1d.hdf5'):
         try:
             print('#%r extracting and appending %s to hdf5' %(count, filename))
             data = extract_npz(filename)
-            size = data.shape
+            size = data.shape 
             i_curr = size[0] + i_prev
             len_total += i_curr
             count += 1
@@ -141,11 +148,11 @@ def stitch_hdf5_Conv1D(file_list, norm, name='big_data_conv1d.hdf5'):
 
             with h5py.File(name, 'a') as f:
                 dataset = f['low_peaks'] #append to low_peaks dataset
-                dataset.resize((len_total, 2000, 1))
+                dataset.resize((len_total, 200000, 1))
                 dataset[i_prev:i_curr, :, :] = low_peaks
 
                 dataset = f['high_peaks'] #append to high_peaks dataset
-                dataset.resize((len_total, 2000, 1))
+                dataset.resize((len_total, 200000, 1))
                 dataset[i_prev:i_curr, :, :] = high_peaks
 
                 f.close()
@@ -159,7 +166,8 @@ def get_file_list(path, data_name):
     file_list = []
     for i in os.listdir(path):
         for filename in os.listdir(os.path.join(path, i)):
-            if filename == data_name:
+            print(filename)
+            if filename  == data_name:
                 file_list.append(os.path.join(path, i, filename))
-                print(os.path.join(path, i, filename))
+                print(os.path.join(path,filename, i, filename))
     return file_list
