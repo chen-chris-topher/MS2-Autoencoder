@@ -1,5 +1,6 @@
 from pyteomics import mzxml, auxiliary
 import numpy as np
+import scipy
 
 def read_data(file):
     """
@@ -135,7 +136,7 @@ def get_match_scans(data, match_index_dict):
     processed_dict = {}
     #loop through all the ms2 scans
     for key in match_index_dict.keys(): #key loops through scans
-        print(key)
+        
         processed_dict[int(key)] = []
         for index, i in zip(match_index_dict[key], range(0, len(match_index_dict[key]))): #where index loops through scans and i loops through samples
             scan = int(data[index].get('id'))
@@ -170,7 +171,7 @@ def bin_array(processed_dict):
             for scan in processed_dict[key][i]:
                 mz_array = processed_dict[key][i][scan].get('mz array')
                 intensity_array = processed_dict[key][i][scan].get('intensity array')
-                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=20000, range=(0, 20000)) #bins are integers range(0,2000)
+                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=200000, range=(0, 2000)) #bins are integers range(0,2000)
                 binned_mz = binned_mz[:-1]
 
                 rt = processed_dict[key][i][scan].get('retentionTime')
@@ -203,7 +204,7 @@ def bin_array2(processed_dict):
             for scan in processed_dict[key][i]:
                 mz_array = processed_dict[key][i][scan].get('mz array')
                 intensity_array = processed_dict[key][i][scan].get('intensity array')
-                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=20000, range=(0, 20000)) #bins are integers range(0,2000)
+                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=200000, range=(0, 2000)) #bins are integers range(0,2000)
                 binned_mz = binned_mz[:-1]
 
                 rt = processed_dict[key][i][scan].get('retentionTime')
@@ -233,7 +234,7 @@ def create_pairs(binned_dict):
                     if np.count_nonzero(scan) != 0:
                         if np.count_nonzero(scan2):
                             pairs.append([binned_dict[key][i][scan], binned_dict[key][j][scan2]])
-                            print(scan, scan2)
+                            
         pairs_list.append(pairs)
     print('successfully created pairs for all matched scans')
     return pairs_list
@@ -268,6 +269,7 @@ def convert_to_ready(ordered_list):
     conversion creates a list with all useful information
     """
     ready_list = []
+    ready_list_2 = []
     print(ordered_list)
     for i in range(0, len(ordered_list)): #i is at the group/molecule level
         group = []
@@ -309,6 +311,30 @@ def convert_to_ready2(ordered_list):
             ready_list.append(np.asarray(pairs))
         ready_array = np.asarray(ready_list)
     return ready_array
+
+def convert_to_ready3(ordered_list):
+    """
+    converts ordered_list into a list of structured DENSE arrays
+    without dictionary keys
+    renders only the DENSE mz_intensity array 
+    conversion makes list ready as training input
+    """
+    ready_list = []
+
+    for i in range(0, len(ordered_list)): #i is at the group/molecule level
+        for j in range(0, len(ordered_list[i])): #j is at the pairs per molecule level
+            pairs = []
+            for k in range(0 , len(ordered_list[i][j])): #k is at the scan per pair level
+                intensity_array = ordered_list[i][j][k].get('intensity array')
+                pairs.append(list(intensity_array))
+
+            ready_list.append(list(pairs))
+        rows, cols, vals = zip(*ready_list)
+        a = scipy.sparse.coo_matrix((vals, (rows, cols)))
+        ready_array = a.A
+    ready_array.todense()
+    return ready_array
+
 
 def output_file(in_dict, directory, match_index=None, processed=None, binned=None, pairs=None, ordered=None):    
     """
@@ -394,13 +420,16 @@ def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):
             output.write(json)
         print('saved dict to "output.json"')
 
-def output_list(in_list, directory, two=None):
+def output_list(in_list, directory, two=None, ready_mass = None):
     import numpy as np
     if two == True:
         filename = directory + '/ready_array2.npz'
         np.savez_compressed(filename, in_list)
         print('saved ready_array2 to %s' %filename)
-    
+    elif ready_mass == True:
+        filename = directory + '/ready_mass.npz'
+        np.savez_compressed(filename, in_list)
+        print('saved ready_array to %s' %filename)
     else:
         filename = directory + '/ready_array.npz'
         np.savez_compressed(filename, in_list)
