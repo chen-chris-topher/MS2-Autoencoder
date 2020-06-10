@@ -1,6 +1,6 @@
 #!/usr/bin/env nextflow
 params.inputSpectra = "./*mzXML"
-params.outdir = "$baseDir/output_nf"
+params.outdir = "$baseDir/output_nf_2"
 
 TOOL_FOLDER = "$baseDir/bin"
 
