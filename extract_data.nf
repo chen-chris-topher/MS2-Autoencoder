@@ -1,5 +1,5 @@
 #!/usr/bin/env nextflow
-params.inputSpectra = "./*mzXML"
+params.inputSpectra = "./data/*mzXML"
 params.outdir = "$baseDir/output_nf_2"
 
 TOOL_FOLDER = "$baseDir/bin"
@@ -19,7 +19,7 @@ process extractPairs {
     file "*_outdir"
 
     script:
-    println(extension)
+    
     if( extension == 'mzML' )
         """
         export LC_ALL=C
