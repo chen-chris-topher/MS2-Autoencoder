@@ -8,13 +8,13 @@ test_cluster_Chemicalstandards:
 	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000078556/ccms_peak/Chemicalstandards/*" -with-trace -resume
 	
 MSV000082048:	
-	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate22/**.mzML" -with-trace -resume
-	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate23/**.mzML" -with-trace -resume
-	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate24/**.mzML" -with-trace -resume
-	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate25/**.mzML" -with-trace -resume
-	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate26/**.mzML" -with-trace -resume
-	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate27/**.mzML" -with-trace -resume
-	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate28/**.mzML" -with-trace -resume
+	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate_22/**.mzML" -with-trace -resume
+	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate_23/**.mzML" -with-trace -resume
+	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate_24/**.mzML" -with-trace -resume
+	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate_25/**.mzML" -with-trace -resume
+	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate_26/**.mzML" -with-trace -resume
+	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate_27/**.mzML" -with-trace -resume
+	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082048/peak/Plate_28/**.mzML" -with-trace -resume
 MSV000082582:
 	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082869/peak/Colgate_phase2/Plate1/**.mzXML" -with-trace -resume
 	nextflow run extract_data.nf -c cluster.config --inputSpectra="/data/massive/MSV000082869/peak/Colgate_phase2/Plate10/**.mzXML" -with-trace -resume
