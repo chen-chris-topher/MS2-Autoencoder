@@ -21,18 +21,19 @@ MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is 
 
 ### 1. Extract mzxml
 1. In MS2-Autoencoder/bin/**main.py** import extract_mzxml as em
-2. The else statement in **main.py** is the entire top to bottom flow of mzxml data extraction
-3. This step should be run on the cluster with nohup and NextFlow to gather all of the data
-4. The Makefile includes functions (instructions) for NextFlow to run main.py on all QExactive data on GNPS(Nov/2019)
+1. The else statement in **main.py** is the entire top to bottom flow of mzxml data extraction
+1. This step should be run on the cluster with nohup and NextFlow to gather all of the data
+1. The Makefile includes functions (instructions) for NextFlow to run main.py on all QExactive data on GNPS(Nov/2019)
+1. This step outputs several files per input mzXML/mzML. This includes ready_array.npz, which includes metadata about the spectra pair, and ready_array2.npz, which includes the actual vector'd data. 
   
 ### 2. Stitch .npz into .hdf5
 1. Use SCP to transfer extracted outdirs from cluster to local (advised that .json files are *rm -r* from outdir)
     * only **ready_array2.npz** or a .npz file is needed for stitching
-2. In MS2-Autoencoder/bin/**processing.py** import concat_hdf5.py as ch5
-3. Specify path to the parent directory of all outdirs, specify name of the data file ('ready_array2.npz')
-4. **processing.py** will concatenate all .npz; it will output two .hdf5 files
+1. In MS2-Autoencoder/bin/**processing.py**
+1. Specify path to the parent directory of all outdirs, specify name of the data file (e.g. 'ready_array2.npz' if we want to merge all the actual paired spectra vectors)
+1. **processing.py** will concatenate all .npz; it will output two .hdf5 files
     1. Autoencoder structured dataset
-    2. Convolution neural network 1D structured dataset
+    1. Convolution neural network 1D structured dataset
     
 ### 3. Train models
 1. Model architecture is outlined in ms2-autoencoder.py, ms2-conv1d.py, ms2-deepautoencoder.py

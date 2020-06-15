@@ -162,12 +162,3 @@ def stitch_hdf5_Conv1D(file_list, norm, name='big_data_conv1d.hdf5'):
             pass
     print('saved all data to %s' % name)
 
-def get_file_list(path, data_name):
-    file_list = []
-    for i in os.listdir(path):
-        for filename in os.listdir(os.path.join(path, i)):
-            print(filename)
-            if filename  == data_name:
-                file_list.append(os.path.join(path, i, filename))
-                print(os.path.join(path,filename, i, filename))
-    return file_list
