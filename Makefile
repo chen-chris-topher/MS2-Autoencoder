@@ -10,7 +10,7 @@ test_cluster_Chemicalstandards:
 	--outdir="./nf_Chemicalstandards" \
 	-with-trace -resume
 	
-# ABX 3D Mose Plates
+# ABX 3D Mouse Plates
 MSV000082048:	
 	nextflow run extract_data.nf -c cluster.config \
 	--inputSpectra="/data/massive/MSV000082048/peak/**.mzML" \
