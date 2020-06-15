@@ -4,6 +4,7 @@ params.outdir = "$baseDir/output_nf_2"
 
 TOOL_FOLDER = "$baseDir/bin"
 
+// Extracting Pairs in Parallel
 process extractPairs { 
     errorStrategy 'ignore'
     //errorStrategy 'terminate'
@@ -40,7 +41,7 @@ process extractPairs {
 
 }
 
-
+// Merging Data Together
 process condensePairs {
     echo true
     cache false
@@ -50,9 +51,11 @@ process condensePairs {
     input:
     file "input_dir/*" from extracted_folder_ch.collect()
 
+    output:
+    file "concat.hdf5"
 
     script:
     """
-    ls input_dir
+    python $TOOL_FOLDER/processing.py input_dir ready_array2.npz --name concat.hdf5
     """
 }
