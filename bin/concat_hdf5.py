@@ -110,6 +110,8 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
                 f.close()
             i_prev = i_curr
             print('length at %s' %len_total)
+        except KeyboardInterrupt:
+            raise
         except:
             print("Failed to reshape data into hdf5")
             pass
