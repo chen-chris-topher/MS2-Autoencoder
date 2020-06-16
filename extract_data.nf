@@ -46,6 +46,8 @@ process condensePairs {
     echo true
     cache false
 
+    memory '60 GB'
+
     publishDir "$params.outdir/stitched_data", mode: 'copy'
 
     input:
