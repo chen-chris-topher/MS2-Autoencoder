@@ -1,5 +1,6 @@
 # MS2-Autoencoder
 MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is to create a generalized model of MS2 spectra so that any low quality spectra can be upscaled to a high quality spectra (with quality being baed on precursor intensity). The direct general application of this tool is denoising spectra. 
+
 ## Tools
 * [Miniconda](https://docs.conda.io/en/latest/miniconda.html) or [Anaconda](https://www.anaconda.com/distribution/)
 * [NextFlow](https://www.nextflow.io/)
@@ -10,7 +11,7 @@ MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is 
 * [keras](https://keras.io/) [autoencoder tutorial](https://blog.keras.io/building-autoencoders-in-keras.html)
 * [tensorflow](https://www.tensorflow.org/install/gpu) ([tensorflow-gpu](https://www.tensorflow.org/install/gpu) or [tensorflow](https://www.tensorflow.org/install)*)
   * *tensorflow-gpu worked on version 1.14 with cudnn version 10.0
-
+  * *tensorflow-gpu 2.2 is what I currenlty use
 ## Structure
 1. Extract mzxml/mzml files for MS2 data
 2. Stitch all extracted data files (.npz) into HDF5 file (.hdf5)

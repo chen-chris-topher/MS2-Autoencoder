@@ -1,10 +1,11 @@
-from keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D
-from keras.layers.advanced_activations import LeakyReLU
-from keras.models import Model
-from keras import backend as K
-from keras.callbacks import TensorBoard
-
 import tensorflow as tf
+
+from tf.keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D
+from tf.keras.layers.advanced_activations import LeakyReLU
+from tf.keras.models import Model
+from tf.keras import backend as K
+from tf.keras.callbacks import TensorBoard
+
 import numpy as np
 import pickle
 import json
@@ -188,6 +189,7 @@ def model_deep_autoencoder():
     autoencoder.compile(optimizer='adadelta', loss='cosine_proximity', metrics=['accuracy'])
     return autoencoder
 
+
 def model_autoencoder():
     input_size = 2000
     encoding_dim = 2000
@@ -200,6 +202,36 @@ def model_autoencoder():
     autoencoder.compile(optimizer='adam', loss='cosine_proximity', metrics=['accuracy'])
     return autoencoder
 
-def model_variational_autoencoder():
+###EVERYTHING BELOW HERE IS A CHRISSY THING!
+def batch_shuffle_data():
+	pass
 
-    return 0
+def initalize_autoencoder():
+	input_size = 200000
+	encoding_dim = 2000
+
+	input_scan = Input(shape=(input_size,))
+	encoded = Dense(encodind_dim, activation='relu')(input_scan)
+	decoded = Dense(input_size, activation='relu')(encoded)
+
+	autoencoder = Model(input_scan, decoded)
+	autoencoder.compile(optimizer='adam', loss='cosine_similarity', metrics=['accuracy'])
+	return(autoencoder)
+
+def fit_autoencoder(autoencoder, dataset_X, dataset_Y):
+	dataset = tf.Dataset.zip((dataset_x, dataset_Y))
+	dataset.shuffle(
+	batched_dataset = dataset.batch((200000, 32))
+
+	for batch in batched_dataset:
+		autoencoder.fit(x=batch, validation_split=0.30, epochs=50, shuffle=True, use_multiprocessing=True)
+		
+	return(autoencoder)
+
+
+
+
+
+
+
+	
