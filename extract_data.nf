@@ -1,11 +1,11 @@
 #!/usr/bin/env nextflow
-params.inputSpectra = "./*mzXML"
+params.inputSpectra = "./spectra_data/*mzXML"
 params.outdir = "$baseDir/output_nf_2"
 
 TOOL_FOLDER = "$baseDir/bin"
 
 process extractPairs { 
-    errorStrategy 'ignore'
+    //errorStrategy 'ignore'
     //errorStrategy 'terminate'
     echo true
     //validExitStatus 1
@@ -28,14 +28,20 @@ process extractPairs {
 
         mkdir "${file_id}_outdir"
         python $TOOL_FOLDER/main.py "${file_id}.mzXML" "${file_id}_outdir"
-        """
+        rm "${file_id}.mzXML"
+		"""
     else if ( extension == 'mzXML' )
         """
-        mkdir "${file_id}_outdir"
-        python $TOOL_FOLDER/main.py "$inputFile" "${file_id}_outdir"
-        rm "${file_id}.mzXML"
+		if( [ -d "${file_id}_outdir" ] )
+		then
+			echo "${file_id} directory made"
+		else
+        	mkdir "${file_id}_outdir"
+        	python $TOOL_FOLDER/main.py "$inputFile" "${file_id}_outdir"
+        	rm "${file_id}.mzXML"
+		fi
         """
     else
-        error "Invalid Extension"
+        error "Invalid Extension"	
 
 }
