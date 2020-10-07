@@ -1,18 +1,28 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+
 import tensorflow as tf
+import kerastuner as kt
+from tensorflow import keras
 
-from tf.keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D
-from tf.keras.layers.advanced_activations import LeakyReLU
-from tf.keras.models import Model
-from tf.keras import backend as K
-from tf.keras.callbacks import TensorBoard
+from tensorflow.keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D, InputLayer
+from tensorflow.keras.layers import Activation 
+from tensorflow.keras.models import Model
+from tensorflow.keras import backend as K
+from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.regularizers import l1
 
+from scipy.spatial.distance import cosine
 import numpy as np
 import pickle
 import json
 import h5py
+import random 
 
 def session_config(allocation=1):
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=allocation)
+    print(tf.config.list_physical_devices())
+    tf.test.is_built_with_cuda()
+    #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=allocation)
     config = tf.ConfigProto(gpu_options=gpu_options)
     config.gpu_options.allow_growth = True
     sess = tf.Session(config=config)
@@ -27,7 +37,15 @@ def generator(X_data, y_data, batch_size):
     while True:
         X_batch = X_data[i*batch_size:(i+1)*batch_size]
         y_batch = y_data[i*batch_size:(i+1)*batch_size]
+        
+        if np.count_nonzero(X_batch) == 0:
+            y_batch = X_batch 
+      
+
+        X_batch = np.add.reduceat(X_batch, np.arange(0, X_batch.shape[1], 100), axis=1)
+        y_batch = np.add.reduceat(y_batch, np.arange(0, y_batch.shape[1], 100),axis=1) 
         i += 1
+    
         yield X_batch, y_batch
         print('\ngenerator yielded a batch %s' %i)
         
@@ -65,15 +83,21 @@ def validation_generator(X_data, y_data, batch_size):
         if i >= number_of_batches:
             i = 0
 
-def test_generator(X_data, batch_size):
+def test_generator(X_data, batch_size): 
     print('generator initiated')
     steps_per_epoch = X_data.shape[0]
     number_of_batches = steps_per_epoch // batch_size
+    print("Total number of batches " + str(number_of_batches))
+    
     i = 0
 
     while True: 
         X_batch = X_data[i*batch_size:(i+1)*batch_size]
         i += 1
+        print(X_batch.shape)
+        
+        X_batch = np.add.reduceat(X_batch, np.arange(0, 200000, 100), axis =1)
+
         yield X_batch
         print('\ngenerator yielded a batch %s' %i)
 
@@ -81,7 +105,7 @@ def test_generator(X_data, batch_size):
             i = 0
 
 def fit_model(model, X_data, y_data):
-    batch_size = 10
+    batch_size = 128
     model.fit_generator(generator=generator(X_data, y_data, batch_size),
                         max_queue_size=40, 
                         steps_per_epoch=X_data.shape[0] // batch_size, 
@@ -115,14 +139,12 @@ def fit_val_model2(model, X_data, y_data):
     return model
 
 def predict_model(model, X_data):
-    batch_size = 100
-    prediction = model.predict_generator(generator=test_generator(X_data, batch_size),
-                                            max_queue_size=10,
-                                            steps=X_data.shape[0] // batch_size)
+    batch_size = 128 
+    prediction = model.predict(x=test_generator(X_data, batch_size), max_queue_size=10, steps=X_data.shape[0] // batch_size)
     return prediction
 
 def eval_model(model, X_data, y_data):
-    batch_size = 10000
+    batch_size = 128 
     evaluation = model.evaluate_generator(generator=generator(X_data, y_data, batch_size),
                                             max_queue_size=40,
                                             steps=X_data.shape[0] // batch_size)
@@ -177,21 +199,25 @@ def model_deep_autoencoder():
     input_size = 2000
     encoding_dim = 100
     input_scan = Input(shape=(input_size,))
-    hidden_1 = Dense(1000, activation='relu')(input_scan)
+    
+    pre_hidden = Desne(2000, activation='relu')(input_scan)
+    hidden_1 = Dense(1000, activation='relu')(pre_hidden)
     hidden_2 = Dense(500, activation='relu')(hidden_1)
+
     encoded = Dense(encoding_dim, activation='relu')(hidden_2)
 
     hidden_3 = Dense(500, activation='relu')(encoded)
     hidden_4 = Dense(1000, activation='relu')(hidden_3)
-    decoded = Dense(input_size, activation='relu')(hidden_4)
+    post_hidden=Dense(2000, activation='relu')(hidden_4)
 
+    decoded = Dense(input_size, activation='relu')(post_hidden)
     autoencoder = Model(input_scan, decoded)
     autoencoder.compile(optimizer='adadelta', loss='cosine_proximity', metrics=['accuracy'])
     return autoencoder
 
 
 def model_autoencoder():
-    input_size = 2000
+    input_size = 200
     encoding_dim = 2000
     input_scan = Input(shape=(input_size,))
     encoded = Dense(encoding_dim, activation='relu')(input_scan)
@@ -202,36 +228,200 @@ def model_autoencoder():
     autoencoder.compile(optimizer='adam', loss='cosine_proximity', metrics=['accuracy'])
     return autoencoder
 
-###EVERYTHING BELOW HERE IS A CHRISSY THING!
-def batch_shuffle_data():
-	pass
+###CHRISSY CODE BELOW
 
-def initalize_autoencoder():
-	input_size = 200000
-	encoding_dim = 2000
+###initialize an autoencoder binned nominaly
+def initialize_autoencoder_low_res():
+    input_size = 2000
+    encoding_dim = 400
 
-	input_scan = Input(shape=(input_size,))
-	encoded = Dense(encodind_dim, activation='relu')(input_scan)
-	decoded = Dense(input_size, activation='relu')(encoded)
+    input_scan = Input(shape=(input_size,)) 
+    
+    hidden_1 = Dense(1000, activation = 'relu')(input_scan)
+    hidden_2 = Dense(700, activation = 'relu')(hidden_1)
+    encoded = Dense(encoding_dim, activation='relu')(hidden_2)
+    hidden_3 = Dense(700, activation = 'relu')(encoded)
+    hidden_4 = Dense(1000, activation = 'relu')(hidden_3)
+    decoded = Dense(input_size, activation='relu')(hidden_4)
 
-	autoencoder = Model(input_scan, decoded)
-	autoencoder.compile(optimizer='adam', loss='cosine_similarity', metrics=['accuracy'])
-	return(autoencoder)
+    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    name='Adam')
 
-def fit_autoencoder(autoencoder, dataset_X, dataset_Y):
-	dataset = tf.Dataset.zip((dataset_x, dataset_Y))
-	dataset.shuffle(
-	batched_dataset = dataset.batch((200000, 32))
-
-	for batch in batched_dataset:
-		autoencoder.fit(x=batch, validation_split=0.30, epochs=50, shuffle=True, use_multiprocessing=True)
-		
-	return(autoencoder)
+    autoencoder = Model(input_scan, decoded)
+    autoencoder.compile(optimizer=adam, loss='cosine_similarity', metrics=['accuracy'])
+   
+    return(autoencoder)
 
 
+###intialize an autoencoder binned to the tenths
+def initialize_autoencoder_high_res():
+    input_size = 200000
+    encoding_dim = 400
+
+    input_scan = Input(shape=(input_size,)) 
+    
+    hidden_1 = Dense(1200, activation = 'relu')(input_scan)
+    hidden_2 = Dense(700, activation = 'relu')(hidden_1)
+    encoded = Dense(encoding_dim, activation='relu')(hidden_2)
+    hidden_3 = Dense(700, activation = 'relu')(encoded)
+    hidden_4 = Dense(1200, activation = 'relu')(hidden_3)
+    decoded = Dense(input_size, activation='relu')(hidden_4)
+
+    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    name='Adam')
+
+    autoencoder = Model(input_scan, decoded)
+    autoencoder.compile(optimizer=adam, loss='cosine_similarity', metrics=['accuracy'])
+   
+    return(autoencoder)
+
+
+###divide and yield data for train and validate
+def test_train_split_high_res(X_data, y_data, batch_size):
+    print('generator initiated')
+
+    steps_per_epoch = X_data.shape[0]
+    number_of_batches = steps_per_epoch // batch_size
+    i = 0
+
+    #the number of samples wer want to use to validate
+    amount_validate = int(X_data.shape[0] * 0.30)
+    
+    #the number where we "start" grabbing samples
+    seed_number = np.random.seed(0, number_of_batches)
+    start_seed = seed_number
+
+    val = True
+    
+    #this executes until the epoch is over
+    while val is True:
+        X_batch = X_data[seed_number*batch_size:(seed_number+1)*batch_size]
+        y_batch = y_data[seed_number*batch_size:(seed_number+1)*batch_size]
+        
+        print(seed_number)
+
+        if np.count_nonzero(X_batch[0]) == 0:
+            y_batch[0] = X_batch[0]
+
+        seed_number += 1
+    
+        if seed_number >= number_of_batches:
+            seed_number = 0
+        
+        yield X_batch, y_batch
+        print('\ngenerator yielded a batch %s' %i)
+         
+        if seed_number == start_seed:
+            val = False    
+
+def fit_autoencoder(autoencoder, X_data, y_data, data_resolution):   
+    batch_size = 128
+    split = 0.7
+    test_size = int(batch_size * (1-split))
+    epochs = 50
+    idx = X_data.shape[0]
+
+    test_loss = []
+    train_loss = []
+
+    for epoch in range(epochs): 
+        print("\nStart of epoch %d" % (epoch,))
+        list_of_indices = []
+        i = 0
+
+        while i < idx:
+            temp_tuple = (i, i+batch_size+test_size)
+            list_of_indices.append(temp_tuple)
+            i += batch_size+test_size
+       
+        random.shuffle(list_of_indices) 
+        
+        val_loss = []
+        acc_loss = []
+        for step, indices in enumerate(list_of_indices):
+            start_train = indices[0]
+            end_train = start_train + batch_size
+            start_test = end_train
+            end_test = indices[1]
+
+            train_dict = autoencoder.train_on_batch(X_data[start_train:end_train], y_data[start_train:end_train], return_dict=True)
+            test_dict = autoencoder.test_on_batch(X_data[start_test:end_test], y_data[start_test:end_test], return_dict=True)
+            val_loss.append(train_dict['loss'])
+            acc_loss.append(test_dict['loss'])
+       
+        test_loss.append(np.mean(acc_loss))
+        train_loss.append(np.mean(val_loss))
+
+        print('Validation Loss: ' + str(np.mean(val_loss)))
+        print('Training Loss: ' + str(np.mean(acc_loss)))
+
+    loss_dict = {'test_loss':test_loss, 'train_loss':train_loss}
+    return(autoencoder, loss_dict)
+
+def pickle_loss_dict(loss_dict, model_name):
+    with open(model_name, 'wb') as handle:
+        pickle.dump(loss_dict, handle)
+
+###hyper parameter tuning with keras tuner
+def model_builder(hp):
+    model = keras.Sequential()
+
+    hp_layer_2 = hp.Int('units', min_value = 700, max_value = 1100, step = 32)
+    hp_layer_3 = hp.Int('units', min_value = 400, max_value = 1000, step = 2)
+    hp_layer_4 = hp.Int('units', min_value = 350, max_value = 900, step = 32)
+
+    hp_units_encoded = hp.Int('units', min_value = 300, max_value = 800, step = 32)
+    
+
+    hp_learning_rate = hp.Choice('learning_rate', values = [1e-2, 1e-3, 1e-4]) 
+    input_size = 200000
+
+    model.add(Input(shape=(200000,)))
+    model.add(Dense(units = 1200, activation = 'relu'))
+    model.add(Dense(units = hp_layer_2, activation = 'relu'))
+    model.add(Dense(units = hp_layer_3, activation = 'relu'))
+    model.add(Dense(units = hp_layer_4, activation = 'relu'))
+
+    model.add(Dense(units = hp_units_encoded, activation = 'relu'))
+    
+    model.add(Dense(units = hp_layer_4, activation = 'relu'))
+    model.add(Dense(units = hp_layer_3, activation = 'relu'))
+    model.add(Dense(units = hp_layer_2, activation='relu'))
+    model.add(Dense(units = 1200, activation = 'relu'))    
+
+    
+    model.compile(optimizer = keras.optimizers.Adam(learning_rate = hp_learning_rate), \
+                              loss = 'cosine_similarity', metrics = ['accuracy'])
+    return(model)
+
+###instantiate the tuner
+def keras_tune():
+    tuner = kt.Hyperband(model_builder,objective = 'val_accuracy', 
+            max_epochs = 10,
+                     factor = 3,
+                     directory = 'my_dir',
+                     project_name = 'intro_to_kt')  
+    return(tuner)
+
+###call back clear
+class ClearTrainingOutput(tf.keras.callbacks.Callback):
+  def on_train_end(*args, **kwargs):
+    IPython.display.clear_output(wait = True)
+
+def keras_fit(tuner, X_data, y_data, X_val, y_val):
+    batch_size = 1
+    tuner.search(x=tensor_creation(X_data, y_data, batch_size), epochs = 10, 
+                validation_data = validation_generator(X_val, y_val, batch_size))
+    return(tuner)
+
+def keras_test(tuner):
+	best_hps = tuner.get_best_hyperparameters(num_trials = 1)[0]
+	print(f"""
+The hyperparameter search is complete. The optimal number of units in the first densely-connected
+layer is {best_hps.get('units')} and the optimal learning rate for the optimizer
+is {best_hps.get('learning_rate')}.
+""")
 
 
 
 
-
-	
