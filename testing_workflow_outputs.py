@@ -1,3 +1,5 @@
+import h5py
+from scipy.spatial.distance import cosine
 import numpy as np
 import copy
 import os
@@ -33,13 +35,12 @@ def format_mgf(feat_id_count, precursor_ion, mass_array, inten_array, spectra_li
 ###function takes npy with the predicted spectra in and outputs relavant information
 def npy_read(filename):
     prediction_data =  np.load(filename)
-    for spectrum in prediction_data:
-        pass
+    return(prediction_data)
         
 ###read autoencoder traning history and build a learning curve
 def pickle_read(filename):
     history_dict = pd.read_pickle(filename)
-    history_df = pd.DataFrame.from_dict(history_dict)
+    history_df = pd.DataFrame.from_dict(history_dict) 
     build_learning_curve(history_df)
 
 def build_learning_curve(df):
@@ -104,21 +105,135 @@ def reading_binned_json():
     print(counter)
     print(len(spectra_list))
     write_mgf(spectra_list)
+
+###fuction outputs a distribtuion of cosine scores for predictions versus actual data
+def cosine_distributions(prediction, actual):
+    import seaborn as sns
+    all_cos_scores = []
+   
+
+    for pre, act in zip(prediction, actual):
+        
+        act = np.add.reduceat(act, np.arange(0, len(act), 100))
+        cos_score = cosine(act,pre)
+        all_cos_scores.append(1 - cos_score)
+    print(all_cos_scores)
+    x = sns.distplot(all_cos_scores)
+    plt.show()
+
+###read in actual spectra vectors from the extracted data
+def read_in_actual_spectra(input_file, target_dataset):
+    hf = h5py.File(input_file, 'r')
+    dset = hf[target_dataset]
+    return(dset)
+
+
+###makes mirror plots of all predicted versus actual spectra pass
+def mirror_plots(actual, predicted):
+    import spectrum_utils.plot as sup
+    import spectrum_utils.spectrum as sus
+
+    print(actual.shape)
+    print(predicted.shape)
+
+    #actual = np.add.reduceat(actual, np.arange(0, len(actual), 100))
+#    predicted = np.add.reduceat(predicted, np.arange(0, len(predicted),100))
+    
+    print(actual.shape)
+    print(predicted.shape)
+    
+    mz = np.arange(0,2000)
+    spectra_list = [actual, predicted]
+    spectra = []
+    for spec in spectra_list:
+        spectra.append(sus.MsmsSpectrum(identifier=0, precursor_mz=0, precursor_charge=0, mz=mz, intensity=spec))
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    spectrum_top, spectrum_bottom = spectra
+    
+    #top  = actual, bottom = predicted
+    sup.mirror(spectrum_top, spectrum_bottom, ax=ax)
+    plt.show()
+    plt.close() 
+
+
+def scatter_data_validity(predictions, high_spectra, low_spectra):
+    x_points = []
+    y_points = []
+    high_points = []
+    low_points = []
+
+        
+    
+    for pre, high, low in zip(predictions, high_spectra, low_spectra):
+        
+        high = np.add.reduceat(high, np.arange(0, len(high), 100))
+        low = np.add.reduceat(low, np.arange(0, len(low), 100))
+        y = cosine(pre,high)
+        y = 1 - y
+        if str(y) != 'nan':
+            y_points.append(y)
+
+            x = cosine(low, high)
+            x = 1- x
+            x_points.append(x)
+            
+            high_points.append(high)
+            low_points.append(low)
             
 
+    
+    plots_from_quadrants(x_points, y_points, low_points, high_points)
+    plt.plot(x_points, y_points, 'o', color='black');
+    plt.ylabel('cosine predicted vs high')
+    plt.xlabel('cosine low vs high')
+    plt.show()
+
+def plots_from_quadrants(x_points, y_points, low_points, high_points):
+    #print(x_points[:100])
+    #print(y_points[:100])
+    
+    x_threshold = 0.95
+    y_threshold = 0.95
+
+    for count,(x,y) in enumerate(zip(x_points, y_points)):
+        if x >= x_threshold:
+            if y >= y_threshold:
+                print(count)
+                break
+
+
+    POI = 181 
+
+    print(x_points[POI], y_points[POI])
+    mirror_plots(low_points[POI], high_points[POI])
+    return
+
 def main():
-    #parser = argparse.ArgumentParser(description='Parse hdf5 files to mgf.')
-    #parser.add_argument('input_hdf5')
-    #parser.add_argument('target_dset')
+    parser = argparse.ArgumentParser(description='Parse hdf5 files to mgf.')
+    parser.add_argument('input_hdf5')
+    parser.add_argument('target_dset')
 
-    #input_file = args.input_hdf5
-    #target_dset = args.target_df
+    args = parser.parse_args()
+    input_file = args.input_hdf5
+    target_dset = args.target_dset
 
-    reading_binned_json()
+    #eading_binned_json()
+    low_dset = read_in_actual_spectra(input_file, 'low_peaks')
+    high_dset = read_in_actual_spectra(input_file, 'high_peaks')
+    predictions = npy_read('predictions.npy')
+    print(len(predictions))
+    #cosine_distributions(predictions, high_dset)
 
-    #npy_read('predictions.npy')
-    #pickle_read('./models_new/autoencoder/autoencoderhistory.pickle')
 
+    #pickle_read('./models/autoencoder/cos_red_autoencoderhistory.pickle')
+    scatter_data_validity(predictions, high_dset, low_dset)
+   
+
+    #print(predictions[0].shape) 
+    #mirror_plots(high_dset[1], predictions[1])
+    #tester =  np.add.reduceat(high_dset[1], np.arange(0, len(high_dset[0]), 100))
+    #print(1 - cosine(tester[1], predictions[1]))
 
 if __name__ == "__main__":
     main()

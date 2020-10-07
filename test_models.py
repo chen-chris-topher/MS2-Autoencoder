@@ -3,7 +3,7 @@ import numpy as np
 import h5py
 import os
 import argparse
-
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 
 parser = argparse.ArgumentParser()
@@ -17,16 +17,17 @@ data = os.path.join(dirname, args.data)
 model_path = os.path.join(dirname, args.model)
 
 #my line
-model_path = "./models_new/autoencoder/autoencoder.h5"
+model_path = "./models/autoencoder/cos_red_autoencoder.h5"
 
-model = load_model(model_path)
+with tf.device('/cpu:0'):
+    model = load_model(model_path)
 
-f = h5py.File(data, 'r')
-dataset_low = f['low_peaks']
-dataset_high = f['high_peaks']
+    f = h5py.File(data, 'r')
+    dataset_low = f['low_peaks']
+    dataset_high = f['high_peaks']
+    prediction = ms2_model.predict_model(model, dataset_low)
+    #evaluation = ms2_model.eval_model(model, dataset_low, dataset_high)
+    #print('Testing accuracy: ', evaluation[1])
 
-prediction = ms2_model.predict_model(model, dataset_high)
-evaluation = ms2_model.eval_model(model, dataset_high, dataset_high)
-print('Testing accuracy: ', evaluation[1])
 save_path = os.path.join(dirname, 'predictions.npy')
 np.save(save_path, prediction)
