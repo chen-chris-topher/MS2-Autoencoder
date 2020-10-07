@@ -19,6 +19,7 @@ def normalize_peaks(peaks_array, norm):
     normalizes each array by dividing the array by the max of that array
     """
     from sklearn.preprocessing import normalize
+    
     for i in range(0, len(peaks_array)):
         peaks_array[i] = normalize(peaks_array[i], norm=norm)
     return peaks_array
@@ -30,7 +31,9 @@ def split_reshape(data, norm):
     """
     split_data = np.split(data, 2, axis=1) 
     low_peaks = split_data[0] 
+    
     low_peaks = normalize_peaks(low_peaks, norm) #normalize
+    
     low_peaks = low_peaks.reshape(len(low_peaks), np.prod(low_peaks.shape[1:]))
     high_peaks = split_data[1]
     high_peaks = normalize_peaks(high_peaks, norm) #normalize
@@ -74,14 +77,8 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
     """
 
     with h5py.File(name, 'w') as f: #create empty hdf5 file with two datasets
-        dataset = f.create_dataset('low_peaks', 
-                                    shape=(1, 200000), 
-                                    maxshape=(None, 200000),
-                                    compression='gzip')
-        dataset = f.create_dataset('high_peaks', 
-                                    shape=(1, 200000), 
-                                    maxshape=(None, 200000),
-                                    compression='gzip')
+        dataset = f.create_dataset('low_peaks', shape=(1, 200000), maxshape=(None, 200000),compression='gzip')
+        dataset = f.create_dataset('high_peaks', shape=(1, 200000), maxshape=(None, 200000),compression='gzip')
         f.close()
 
     i_prev = 0
@@ -91,15 +88,16 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
         try:
             print('#%r extracting and appending %s to hdf5' %(count, filename))
             data = extract_npz(filename)   
-            
             size = data.shape
             i_curr = size[0] + i_prev
             len_total += i_curr
             count += 1
             
             low_peaks, high_peaks = split_reshape(data, norm) 
+            
             with h5py.File(name, 'a') as f:
                 dataset = f['low_peaks'] #append to low_peaks dataset
+                
                 dataset.resize((len_total, 200000))
                 dataset[i_prev:i_curr, :] = low_peaks
 
@@ -166,8 +164,54 @@ def get_file_list(path, data_name):
     file_list = []
     for i in os.listdir(path):
         for filename in os.listdir(os.path.join(path, i)):
-            print(filename)
+            #print(filename)
             if filename  == data_name:
                 file_list.append(os.path.join(path, i, filename))
-                print(os.path.join(path,filename, i, filename))
+                #print(os.path.join(path,filename, i, filename))
     return file_list
+
+def wrangle_additional_data(file_list, name='add_info.hdf5'):
+
+    with h5py.File(name, 'w') as f: #create empty hdf5 file with two datasets
+        dataset = f.create_dataset('low_peaks', shape=(1, 3), maxshape=(None, 3),compression='gzip')
+        dataset = f.create_dataset('high_peaks', shape=(1, 3), maxshape=(None, 3),compression='gzip')
+        f.close()
+
+    i_prev = 0
+    len_total = 0
+    count = 0
+
+    for filename in file_list:
+        try:
+            print('#%r extracting and appending %s to hdf5' %(count, filename))
+            data = extract_npz(filename)   
+            size = data.shape 
+            i_curr = size[0] + i_prev
+            len_total += i_curr
+            count += 1
+
+            split_data = np.split(data, 2, axis=1) 
+            low_peaks = split_data[0]
+            low_peaks = low_peaks.reshape(len(low_peaks), np.prod(low_peaks.shape[1:]))
+            print(low_peaks.shape)
+            high_peaks = split_data[1]
+            high = high_peaks.reshape(len(high_peaks), np.prod(high_peaks.shape[1:]))
+            print(high_peaks.shape)        
+            with h5py.File(name, 'a') as f:
+                dataset = f['low_peaks'] #append to low_peaks dataset                     
+                dataset.resize((len_total, 3))
+                dataset[i_prev:i_curr, :] = low_peaks
+                print("past first resize")
+                dataset = f['high_peaks'] #append to high_peaks dataset
+                dataset.resize((len_total, 3))
+                dataset[i_prev:i_curr, :] = high_peaks
+
+                f.close()
+            i_prev = i_curr
+            print('length at %s' %len_total)
+        except:
+            print("Failed to reshape data into hdf5")
+            pass
+    print('saved all data to %s' % name)
+
+

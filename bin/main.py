@@ -87,7 +87,7 @@ else: #complete run through
     #ready_array = em.convert_to_ready(ordered_list)
     #ready_array = em.convert_to_ready2(ordered_list)
     ready_array = em.convert_to_ready2(ordered_list)
-    print(type(ready_array))
+    
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
     em.output_list(ready_array, directory, two=True, ready_mass=None)
