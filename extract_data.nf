@@ -4,7 +4,7 @@ params.outdir = "$baseDir/output_nf_2"
 TOOL_FOLDER = "$baseDir/bin"
 
 process extractPairs { 
-    //errorStrategy 'ignore'
+    errorStrategy 'ignore'
     //errorStrategy 'terminate'
     echo true
     //validExitStatus 1
@@ -26,7 +26,7 @@ process extractPairs {
         $TOOL_FOLDER/msconvert "$inputFile" --outfile "${file_id}.mzXML" --mzXML
 
         mkdir "${file_id}_outdir"
-        python $TOOL_FOLDER/main.py "${file_id}.mzXML" "${file_id}_outdir"
+        /Users/cmaceves/miniconda3/envs/autoencoder/bin/python "$TOOL_FOLDER"/main.py "${file_id}.mzXML" "${file_id}_outdir"
         rm "${file_id}.mzXML"
 		"""
     else if ( extension == 'mzXML' )
@@ -36,7 +36,7 @@ process extractPairs {
 			echo "${file_id} directory made"
 		else
         	mkdir "${file_id}_outdir"
-        	python $TOOL_FOLDER/main.py "$inputFile" "${file_id}_outdir"
+        	/Users/cmaceves/miniconda3/envs/autoencoder/bin/python "$TOOL_FOLDER"/main.py "$inputFile" "${file_id}_outdir"
         	rm "${file_id}.mzXML"
 		fi
         """
