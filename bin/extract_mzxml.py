@@ -121,7 +121,7 @@ def search_MS2_matches(data, id_list_ms2, rt_tol=0.5, mz_tol=0.01):
                             print('Found a match: %s:%r' %(k, v))
                 
                 match_index_dict[id_save] = v_list
-            print(id_save, match_index_dict[id_save])
+
             print('Finished search for dict[%s]' %k)
             redun_check = False #reset redundancy check boolean
         else:
@@ -270,7 +270,9 @@ def convert_to_ready(ordered_list):
     """
     ready_list = []
     ready_list_2 = []
-    print(ordered_list)
+    ready_array = [] #just needs declaration
+    ready_mz = [] #just needs declaration
+    
     for i in range(0, len(ordered_list)): #i is at the group/molecule level
         group = []
         for j in range(0, len(ordered_list[i])): #j is at the pairs per molecule level
@@ -290,6 +292,7 @@ def convert_to_ready(ordered_list):
 
         ready_mz=np.asarray(ready_list_2)
         ready_array = np.asarray(ready_list)
+    
     return(ready_array, ready_mz)
 
 #use convert_to_ready2() for creating a training ready file
@@ -301,7 +304,7 @@ def convert_to_ready2(ordered_list):
     conversion makes list ready as training input
     """
     ready_list = []
-
+    ready_array = []
     for i in range(0, len(ordered_list)): #i is at the group/molecule level
         for j in range(0, len(ordered_list[i])): #j is at the pairs per molecule level
             pairs = []
