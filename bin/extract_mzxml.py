@@ -36,13 +36,14 @@ def find_MS2(data, directory):
     id_list_ms1 = []
     id_list_ms2 = []
     
-    for i in range(0, len(data)): #looping over all scan in the file
-        if data[i].get('msLevel') == 2:
-            id_list_ms2.append(i) #int 
-        elif data[i].get('msLevel') == 1:
-            id_list_ms1.append(i) #int
-        else:
-            print('msLevel error: could not sort dict[%s] msLevel' %(str(i)))
+    for i in range(0, len(data)): #looping over all scans in the file 
+        if data[i]['polarity'] == '+': 
+            if data[i].get('msLevel') == 2:
+                id_list_ms2.append(i) #int 
+            elif data[i].get('msLevel') == 1:
+                id_list_ms1.append(i) #int
+            else:
+                print('msLevel error: could not sort dict[%s] msLevel' %(str(i)))
 
     #creating the files where this list will be stored
     filename1 = directory + '/id_list_ms1.txt'
