@@ -149,8 +149,11 @@
 #wget ftp://massive.ucsd.edu/MSV000083559/peak/mzXML_Files/Plate6/std_mix/* -P spectra_data_3
 #wget ftp://massive.ucsd.edu/MSV000083559/peak/mzXML_Files/swab_control/* -P spectra_data_3
 
-wget ftp://massive.ucsd.edu/MSV000083612/peak/pos/* -P spectra_data_3
-wget ftp://massive.ucsd.edu/MSV000083729/ccms_peak/StromTissuePos_mzXMLfiles/* -P spectra_data_3
-wget ftp://massive.ucsd.edu/MSV000083756/peak/* -P spectra_data_3
-wget ftp://massive.ucsd.edu/MSV000083773/peak/* -P spectra_data_3
+#wget ftp://massive.ucsd.edu/MSV000083612/peak/pos/* -P spectra_data_3
+#wget ftp://massive.ucsd.edu/MSV000083729/ccms_peak/StromTissuePos_mzXMLfiles/* -P spectra_data_3
+#wget ftp://massive.ucsd.edu/MSV000083756/peak/* -P spectra_data_3
+#wget ftp://massive.ucsd.edu/MSV000083773/peak/* -P spectra_data_3
+
+#TEST DATASET
+wget ftp://massive.ucsd.edu/MSV000081952/peak/mzxml_files/Plate1/Samples/* -P test_dataset
 
