@@ -41,9 +41,6 @@ def generator(X_data, y_data, batch_size):
         if np.count_nonzero(X_batch) == 0:
             y_batch = X_batch 
       
-
-        X_batch = np.add.reduceat(X_batch, np.arange(0, X_batch.shape[1], 100), axis=1)
-        y_batch = np.add.reduceat(y_batch, np.arange(0, y_batch.shape[1], 100),axis=1) 
         i += 1
     
         yield X_batch, y_batch
@@ -95,8 +92,7 @@ def test_generator(X_data, batch_size):
         X_batch = X_data[i*batch_size:(i+1)*batch_size]
         i += 1
         print(X_batch.shape)
-        
-        X_batch = np.add.reduceat(X_batch, np.arange(0, 200000, 100), axis =1)
+         
 
         yield X_batch
         print('\ngenerator yielded a batch %s' %i)
@@ -253,69 +249,8 @@ def initialize_autoencoder_low_res():
     return(autoencoder)
 
 
-###intialize an autoencoder binned to the tenths
-def initialize_autoencoder_high_res():
-    input_size = 200000
-    encoding_dim = 400
-
-    input_scan = Input(shape=(input_size,)) 
-    
-    hidden_1 = Dense(1200, activation = 'relu')(input_scan)
-    hidden_2 = Dense(700, activation = 'relu')(hidden_1)
-    encoded = Dense(encoding_dim, activation='relu')(hidden_2)
-    hidden_3 = Dense(700, activation = 'relu')(encoded)
-    hidden_4 = Dense(1200, activation = 'relu')(hidden_3)
-    decoded = Dense(input_size, activation='relu')(hidden_4)
-
-    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
-    name='Adam')
-
-    autoencoder = Model(input_scan, decoded)
-    autoencoder.compile(optimizer=adam, loss='cosine_similarity', metrics=['accuracy'])
-   
-    return(autoencoder)
-
-
-###divide and yield data for train and validate
-def test_train_split_high_res(X_data, y_data, batch_size):
-    print('generator initiated')
-
-    steps_per_epoch = X_data.shape[0]
-    number_of_batches = steps_per_epoch // batch_size
-    i = 0
-
-    #the number of samples wer want to use to validate
-    amount_validate = int(X_data.shape[0] * 0.30)
-    
-    #the number where we "start" grabbing samples
-    seed_number = np.random.seed(0, number_of_batches)
-    start_seed = seed_number
-
-    val = True
-    
-    #this executes until the epoch is over
-    while val is True:
-        X_batch = X_data[seed_number*batch_size:(seed_number+1)*batch_size]
-        y_batch = y_data[seed_number*batch_size:(seed_number+1)*batch_size]
-        
-        print(seed_number)
-
-        if np.count_nonzero(X_batch[0]) == 0:
-            y_batch[0] = X_batch[0]
-
-        seed_number += 1
-    
-        if seed_number >= number_of_batches:
-            seed_number = 0
-        
-        yield X_batch, y_batch
-        print('\ngenerator yielded a batch %s' %i)
-         
-        if seed_number == start_seed:
-            val = False    
-
 def fit_autoencoder(autoencoder, X_data, y_data, data_resolution):   
-    batch_size = 128
+    batch_size = 512
     split = 0.7
     test_size = int(batch_size * (1-split))
     epochs = 50
@@ -324,16 +259,16 @@ def fit_autoencoder(autoencoder, X_data, y_data, data_resolution):
     test_loss = []
     train_loss = []
 
+    while i < idx:
+        temp_tuple = (i, i+batch_size+test_size)
+        list_of_indices.append(temp_tuple)
+        i += batch_size+test_size
+
     for epoch in range(epochs): 
         print("\nStart of epoch %d" % (epoch,))
         list_of_indices = []
         i = 0
-
-        while i < idx:
-            temp_tuple = (i, i+batch_size+test_size)
-            list_of_indices.append(temp_tuple)
-            i += batch_size+test_size
-       
+      
         random.shuffle(list_of_indices) 
         
         val_loss = []
@@ -361,67 +296,3 @@ def fit_autoencoder(autoencoder, X_data, y_data, data_resolution):
 def pickle_loss_dict(loss_dict, model_name):
     with open(model_name, 'wb') as handle:
         pickle.dump(loss_dict, handle)
-
-###hyper parameter tuning with keras tuner
-def model_builder(hp):
-    model = keras.Sequential()
-
-    hp_layer_2 = hp.Int('units', min_value = 700, max_value = 1100, step = 32)
-    hp_layer_3 = hp.Int('units', min_value = 400, max_value = 1000, step = 2)
-    hp_layer_4 = hp.Int('units', min_value = 350, max_value = 900, step = 32)
-
-    hp_units_encoded = hp.Int('units', min_value = 300, max_value = 800, step = 32)
-    
-
-    hp_learning_rate = hp.Choice('learning_rate', values = [1e-2, 1e-3, 1e-4]) 
-    input_size = 200000
-
-    model.add(Input(shape=(200000,)))
-    model.add(Dense(units = 1200, activation = 'relu'))
-    model.add(Dense(units = hp_layer_2, activation = 'relu'))
-    model.add(Dense(units = hp_layer_3, activation = 'relu'))
-    model.add(Dense(units = hp_layer_4, activation = 'relu'))
-
-    model.add(Dense(units = hp_units_encoded, activation = 'relu'))
-    
-    model.add(Dense(units = hp_layer_4, activation = 'relu'))
-    model.add(Dense(units = hp_layer_3, activation = 'relu'))
-    model.add(Dense(units = hp_layer_2, activation='relu'))
-    model.add(Dense(units = 1200, activation = 'relu'))    
-
-    
-    model.compile(optimizer = keras.optimizers.Adam(learning_rate = hp_learning_rate), \
-                              loss = 'cosine_similarity', metrics = ['accuracy'])
-    return(model)
-
-###instantiate the tuner
-def keras_tune():
-    tuner = kt.Hyperband(model_builder,objective = 'val_accuracy', 
-            max_epochs = 10,
-                     factor = 3,
-                     directory = 'my_dir',
-                     project_name = 'intro_to_kt')  
-    return(tuner)
-
-###call back clear
-class ClearTrainingOutput(tf.keras.callbacks.Callback):
-  def on_train_end(*args, **kwargs):
-    IPython.display.clear_output(wait = True)
-
-def keras_fit(tuner, X_data, y_data, X_val, y_val):
-    batch_size = 1
-    tuner.search(x=tensor_creation(X_data, y_data, batch_size), epochs = 10, 
-                validation_data = validation_generator(X_val, y_val, batch_size))
-    return(tuner)
-
-def keras_test(tuner):
-	best_hps = tuner.get_best_hyperparameters(num_trials = 1)[0]
-	print(f"""
-The hyperparameter search is complete. The optimal number of units in the first densely-connected
-layer is {best_hps.get('units')} and the optimal learning rate for the optimizer
-is {best_hps.get('learning_rate')}.
-""")
-
-
-
-
