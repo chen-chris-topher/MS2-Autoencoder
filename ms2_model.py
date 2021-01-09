@@ -169,11 +169,11 @@ def model_Conv1D():
     hidden_1 = Conv1D(32, (3, ), activation='relu', padding='same')(input_scan)
     hidden_2 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_1)
     hidden_3 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_2)
-    print(hidden_3)
+    print(hidden_3.shape)
 
     #max pooling layer 1
     hidden_3_copy = hidden_3
-    max_pool_1 = MaxPooling1D()(hidden_3)
+    max_pool_1 = MaxPooling1D(2)(hidden_3)
     print(max_pool_1.shape)
 
     #layers 4-6
@@ -184,30 +184,32 @@ def model_Conv1D():
 
     #max pooling layer 2
     hidden_6_copy = hidden_6
-    max_pool_2 = MaxPooling1D()(hidden_6)
+    max_pool_2 = MaxPooling1D(2)(hidden_6)
     print(max_pool_2.shape)
 
     #layers 7-9 ~ Encoded!
-    hidden_7 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_2)
-    hidden_8 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_7)
-    hidden_9 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_8)
+    hidden_7 = Conv1D(64, (3, ), activation='relu', padding='same')(max_pool_2)
+    hidden_8 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_7)
+    hidden_9 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_8)
     print(hidden_9.shape)
 
     #upsampling layer 1 
-    up_1 = UpSampling1D(3)(hidden_9)
-    concat_1 = tf.keras.layers.Concatenate(axis=1)([up_1, hidden_6_copy])
-    print(concat_1.shape)
+    up_1 = UpSampling1D(2)(hidden_9)
+    print("Up 1", up_1.shape)
+    print(hidden_6_copy.shape)
+    concat_1 = tf.keras.layers.Concatenate(axis=2)([up_1, hidden_6_copy])
+    print("Concat 1", concat_1.shape)
 
     #layer 10-12
-    hidden_10 = Conv1D(64, (3, ), activation='relu', padding='same')(concat_1)
-    hidden_11 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_10)
-    hidden_12 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_11)
-    print(hidden_12.shape)
+    hidden_10 = Conv1D(32, (3, ), activation='relu', padding='same')(concat_1)
+    hidden_11 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_10)
+    hidden_12 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_11)
+    print("Hidden 12", hidden_12.shape)
 
     #upsampling layer 2
-    up_2 = UpSampling1D(3)(hidden_10)
-    concat_2 = tf.keras.layers.Concatenate(axis=1)([up_2, hidden_3_copy])
-    print(concat_2.shape)
+    up_2 = UpSampling1D(2)(hidden_10)
+    concat_2 = tf.keras.layers.Concatenate(axis=2)([up_2, hidden_3_copy])
+    print("Concat 2", concat_2.shape)
 
     #layer 13-15
     hidden_13 = Conv1D(32, (3, ), activation='relu', padding='same')(concat_2)
@@ -279,7 +281,7 @@ def initialize_autoencoder_low_res():
     return(autoencoder)
 
 
-def fit_autoencoder(autoencoder, X_data, y_data, data_resolution):   
+def fit_autoencoder(autoencoder, X_data, y_data):   
     batch_size = 512
     split = 0.7
     test_size = int(batch_size * (1-split))
@@ -288,7 +290,8 @@ def fit_autoencoder(autoencoder, X_data, y_data, data_resolution):
 
     test_loss = []
     train_loss = []
-
+    i = 0
+    list_of_indices = []
     while i < idx:
         temp_tuple = (i, i+batch_size+test_size)
         list_of_indices.append(temp_tuple)
@@ -297,14 +300,13 @@ def fit_autoencoder(autoencoder, X_data, y_data, data_resolution):
     training_indices = []
     testing_indices = []
     for index_set in list_of_indices:
-        traing_indices.append((index_set[0], index_set[0] + batch_size))
+        training_indices.append((index_set[0], index_set[0] + batch_size))
         testing_indices.append((index_set[0] + batch_size, index_set[1]))
 
     for epoch in range(epochs): 
         print("\nStart of epoch %d" % (epoch,))
         list_of_indices = []
-        i = 0
-      
+        
         random.seed(10)
         random.shuffle(training_indices)
         random.shuffle(testing_indices)
