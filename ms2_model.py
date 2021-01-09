@@ -225,7 +225,6 @@ def model_autoencoder():
     return autoencoder
 
 ###CHRISSY CODE BELOW
-
 ###initialize an autoencoder binned nominaly
 def initialize_autoencoder_low_res():
     input_size = 2000
@@ -264,23 +263,34 @@ def fit_autoencoder(autoencoder, X_data, y_data, data_resolution):
         list_of_indices.append(temp_tuple)
         i += batch_size+test_size
 
+    training_indices = []
+    testing_indices = []
+    for index_set in list_of_indices:
+        traing_indices.append((index_set[0], index_set[0] + batch_size))
+        testing_indices.append((index_set[0] + batch_size, index_set[1]))
+
     for epoch in range(epochs): 
         print("\nStart of epoch %d" % (epoch,))
         list_of_indices = []
         i = 0
       
-        random.shuffle(list_of_indices) 
+        random.seed(10)
+        random.shuffle(training_indices)
+        random.shuffle(testing_indices)
         
         val_loss = []
         acc_loss = []
-        for step, indices in enumerate(list_of_indices):
-            start_train = indices[0]
-            end_train = start_train + batch_size
-            start_test = end_train
-            end_test = indices[1]
+        for step, (test_indices, train_indices) in enumerate(zip(training_indices, testing_indices)):
+            
+            start_train = train_indices[0]
+            end_train = train_indices[1]
+
+            start_test = test_indices[0]
+            end_test = test_indices[1]
 
             train_dict = autoencoder.train_on_batch(X_data[start_train:end_train], y_data[start_train:end_train], return_dict=True)
             test_dict = autoencoder.test_on_batch(X_data[start_test:end_test], y_data[start_test:end_test], return_dict=True)
+            
             val_loss.append(train_dict['loss'])
             acc_loss.append(test_dict['loss'])
        
