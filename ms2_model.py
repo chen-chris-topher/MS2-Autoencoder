@@ -160,35 +160,66 @@ def load_history(history_file):
     history_dict = pickle.load(file)
     return history_dict
 
+#changed aritechture to follow U-net style
 def model_Conv1D():
     input_size = 2000
     input_scan = Input(shape=(input_size, 1))
-    print(input_scan.shape)
-    hidden_1 = Conv1D(1, (5, ), activation='relu', padding='same')(input_scan)
-    print(hidden_1.shape)
-    hidden_2 = MaxPooling1D()(hidden_1)
-    hidden_3 = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_2)
-    print(hidden_3.shape)
-    hidden_4 = MaxPooling1D()(hidden_3)
-    hidden_5 = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_4)
-    print(hidden_5.shape)
-    encoded = MaxPooling1D((5, ))(hidden_5)
-    print(encoded.shape)
+   
+    #layers 1-3 convolution
+    hidden_1 = Conv1D(32, (3, ), activation='relu', padding='same')(input_scan)
+    hidden_2 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_1)
+    hidden_3 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_2)
+    print(hidden_3)
 
-    hidden_6 = Conv1D(1, (5, ), activation='relu', padding='same')(encoded)
+    #max pooling layer 1
+    hidden_3_copy = hidden_3
+    max_pool_1 = MaxPooling1D()(hidden_3)
+    print(max_pool_1.shape)
+
+    #layers 4-6
+    hidden_4 = Conv1D(64, (3, ), activation='relu', padding='same')(max_pool_1)
+    hidden_5 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_4)
+    hidden_6 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_5)
     print(hidden_6.shape)
-    hidden_7 = UpSampling1D(5)(hidden_6)
-    hidden_8 = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_7)
-    print(hidden_7.shape)
-    hidden_9 = UpSampling1D()(hidden_8)
-    hidden_10 = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_9)
-    print(hidden_10.shape)
-    hidden_11 = UpSampling1D()(hidden_10)
-    decoded = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_11)
+
+    #max pooling layer 2
+    hidden_6_copy = hidden_6
+    max_pool_2 = MaxPooling1D()(hidden_6)
+    print(max_pool_2.shape)
+
+    #layers 7-9 ~ Encoded!
+    hidden_7 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_2)
+    hidden_8 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_7)
+    hidden_9 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_8)
+    print(hidden_9.shape)
+
+    #upsampling layer 1 
+    up_1 = UpSampling1D(3)(hidden_9)
+    concat_1 = tf.keras.layers.Concatenate(axis=1)([up_1, hidden_6_copy])
+    print(concat_1.shape)
+
+    #layer 10-12
+    hidden_10 = Conv1D(64, (3, ), activation='relu', padding='same')(concat_1)
+    hidden_11 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_10)
+    hidden_12 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_11)
+    print(hidden_12.shape)
+
+    #upsampling layer 2
+    up_2 = UpSampling1D(3)(hidden_10)
+    concat_2 = tf.keras.layers.Concatenate(axis=1)([up_2, hidden_3_copy])
+    print(concat_2.shape)
+
+    #layer 13-15
+    hidden_13 = Conv1D(32, (3, ), activation='relu', padding='same')(concat_2)
+    hidden_14 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_13)
+    hidden_15 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_14)
+    print(hidden_15.shape)
+
+    decoded = Conv1D(1, (1 ), activation='relu', padding='same')(hidden_15)
     print(decoded.shape)
 
     model = Model(input_scan, decoded)
-    model.compile(optimizer='adadelta', loss='cosine_proximity', metrics=['accuracy'])
+    model.compile(optimizer='adadelta', loss='cosine_similarity', metrics=['accuracy'])
     return model
 
 def model_deep_autoencoder():
