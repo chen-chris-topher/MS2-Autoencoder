@@ -188,9 +188,9 @@ def model_Conv1D():
     print(max_pool_2.shape)
 
     #layers 7-9 ~ Encoded!
-    hidden_7 = Conv1D(64, (3, ), activation='relu', padding='same')(max_pool_2)
-    hidden_8 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_7)
-    hidden_9 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_8)
+    hidden_7 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_2)
+    hidden_8 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_7)
+    hidden_9 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_8)
     print(hidden_9.shape)
 
     #upsampling layer 1 
@@ -201,9 +201,9 @@ def model_Conv1D():
     print("Concat 1", concat_1.shape)
 
     #layer 10-12
-    hidden_10 = Conv1D(32, (3, ), activation='relu', padding='same')(concat_1)
-    hidden_11 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_10)
-    hidden_12 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_11)
+    hidden_10 = Conv1D(64, (3, ), activation='relu', padding='same')(concat_1)
+    hidden_11 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_10)
+    hidden_12 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_11)
     print("Hidden 12", hidden_12.shape)
 
     #upsampling layer 2
@@ -220,8 +220,10 @@ def model_Conv1D():
     decoded = Conv1D(1, (1 ), activation='relu', padding='same')(hidden_15)
     print(decoded.shape)
 
+    ada = tf.keras.optimizers.Adadelta(learning_rate=0.0001, rho=0.95, epsilon=1e-07, name="Adadelta")
+
     model = Model(input_scan, decoded)
-    model.compile(optimizer='adadelta', loss='cosine_similarity', metrics=['accuracy'])
+    model.compile(optimizer=ada, loss='cosine_similarity', metrics=['accuracy'])
     return model
 
 def model_deep_autoencoder():
@@ -285,7 +287,7 @@ def fit_autoencoder(autoencoder, X_data, y_data):
     batch_size = 512
     split = 0.7
     test_size = int(batch_size * (1-split))
-    epochs = 50
+    epochs = 15
     idx = X_data.shape[0]
 
     test_loss = []
@@ -332,6 +334,8 @@ def fit_autoencoder(autoencoder, X_data, y_data):
 
         print('Validation Loss: ' + str(np.mean(val_loss)))
         print('Training Loss: ' + str(np.mean(acc_loss)))
+        if epoch == 0:
+            print(autoencoder.summary())
 
     loss_dict = {'test_loss':test_loss, 'train_loss':train_loss}
     return(autoencoder, loss_dict)
