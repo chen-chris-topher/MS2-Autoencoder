@@ -405,7 +405,7 @@ def main():
     #parser.add_argument('filename')
     #args = parser.parse_args()
     
-    model_name = './models/autoencoder/conv1d_3.h5'
+    model_name = './models/autoencoder/conv1d_22.h5'
     
     low_dset, high_dset = get_hdf5()
     print(low_dset.shape)

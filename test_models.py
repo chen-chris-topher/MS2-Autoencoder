@@ -17,7 +17,7 @@ data = os.path.join(dirname, args.data)
 model_path = os.path.join(dirname, args.model)
 
 #my line
-model_path = "./models/autoencoder/cos_red_autoencoder.h5"
+model_path = "./models/autoencoder/conv1d_22.h5"
 
 with tf.device('/cpu:0'):
     model = load_model(model_path)

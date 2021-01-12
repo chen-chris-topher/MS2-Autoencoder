@@ -166,9 +166,9 @@ def model_Conv1D():
     input_scan = Input(shape=(input_size, 1))
    
     #layers 1-3 convolution
-    hidden_1 = Conv1D(32, (3, ), activation='relu', padding='same')(input_scan)
-    hidden_2 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_1)
-    hidden_3 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_2)
+    hidden_1 = Conv1D(64, (3, ), activation='relu', padding='same')(input_scan)
+    hidden_2 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_1)
+    hidden_3 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_2)
     print(hidden_3.shape)
 
     #max pooling layer 1
@@ -177,9 +177,9 @@ def model_Conv1D():
     print(max_pool_1.shape)
 
     #layers 4-6
-    hidden_4 = Conv1D(64, (3, ), activation='relu', padding='same')(max_pool_1)
-    hidden_5 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_4)
-    hidden_6 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_5)
+    hidden_4 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_1)
+    hidden_5 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_4)
+    hidden_6 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_5)
     print(hidden_6.shape)
 
     #max pooling layer 2
@@ -201,9 +201,9 @@ def model_Conv1D():
     print("Concat 1", concat_1.shape)
 
     #layer 10-12
-    hidden_10 = Conv1D(64, (3, ), activation='relu', padding='same')(concat_1)
-    hidden_11 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_10)
-    hidden_12 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_11)
+    hidden_10 = Conv1D(128, (2, ), activation='relu', padding='same')(concat_1)
+    hidden_11 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_10)
+    hidden_12 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_11)
     print("Hidden 12", hidden_12.shape)
 
     #upsampling layer 2
@@ -212,9 +212,9 @@ def model_Conv1D():
     print("Concat 2", concat_2.shape)
 
     #layer 13-15
-    hidden_13 = Conv1D(32, (3, ), activation='relu', padding='same')(concat_2)
-    hidden_14 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_13)
-    hidden_15 = Conv1D(32, (3, ), activation='relu', padding='same')(hidden_14)
+    hidden_13 = Conv1D(64, (2, ), activation='relu', padding='same')(concat_2)
+    hidden_14 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_13)
+    hidden_15 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_14)
     print(hidden_15.shape)
 
     decoded = Conv1D(1, (1 ), activation='relu', padding='same')(hidden_15)
@@ -287,7 +287,7 @@ def fit_autoencoder(autoencoder, X_data, y_data):
     batch_size = 512
     split = 0.7
     test_size = int(batch_size * (1-split))
-    epochs = 15
+    epochs = 5
     idx = X_data.shape[0]
 
     test_loss = []
