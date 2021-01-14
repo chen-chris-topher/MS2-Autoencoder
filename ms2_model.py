@@ -135,7 +135,7 @@ def fit_val_model2(model, X_data, y_data):
     return model
 
 def predict_model(model, X_data):
-    batch_size = 128 
+    batch_size = 32 
     prediction = model.predict(x=test_generator(X_data, batch_size), max_queue_size=10, steps=X_data.shape[0] // batch_size)
     return prediction
 
@@ -152,7 +152,7 @@ def save_model(model, name_h5):
 
 def save_history(history, filename):
     with open(filename, 'wb') as file_pi:
-        pickle.dump(history.history, file_pi)
+        pickle.dump(history, file_pi)
     print('training history has been saved to %s' %filename)
 
 def load_history(history_file):
@@ -165,10 +165,17 @@ def model_Conv1D():
     input_size = 2000
     input_scan = Input(shape=(input_size, 1))
    
+    """
+    pre_1 = Conv1D(32, (5, ), activation='relu', padding='same')(input_scan)
+    pre_2 = Conv1D(32, (5, ), activation='relu', padding='same')(input_scan)
+    pre_3 = Conv1D(32, (5, ), activation='relu', padding='same')(input_scan)
+    """
+
+
     #layers 1-3 convolution
-    hidden_1 = Conv1D(64, (3, ), activation='relu', padding='same')(input_scan)
-    hidden_2 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_1)
-    hidden_3 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_2)
+    hidden_1 = Conv1D(64, (5, ), activation='relu', padding='same')(input_scan)
+    hidden_2 = Conv1D(64, (5, ), activation='relu', padding='same')(hidden_1)
+    hidden_3 = Conv1D(64, (5, ), activation='relu', padding='same')(hidden_2)
     print(hidden_3.shape)
 
     #max pooling layer 1
@@ -177,21 +184,21 @@ def model_Conv1D():
     print(max_pool_1.shape)
 
     #layers 4-6
-    hidden_4 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_1)
-    hidden_5 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_4)
-    hidden_6 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_5)
+    hidden_4 = Conv1D(128, (5, ), activation='relu', padding='same')(max_pool_1)
+    hidden_5 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_4)
+    hidden_6 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_5)
     print(hidden_6.shape)
 
     #max pooling layer 2
     hidden_6_copy = hidden_6
     max_pool_2 = MaxPooling1D(2)(hidden_6)
-    print(max_pool_2.shape)
+    print("Max Pool 2", max_pool_2.shape)
 
     #layers 7-9 ~ Encoded!
-    hidden_7 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_2)
-    hidden_8 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_7)
-    hidden_9 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_8)
-    print(hidden_9.shape)
+    hidden_7 = Conv1D(128, (5, ), activation='relu', padding='same')(max_pool_2)
+    hidden_8 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_7)
+    hidden_9 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_8)
+    print("Hidden 9", hidden_9.shape)
 
     #upsampling layer 1 
     up_1 = UpSampling1D(2)(hidden_9)
@@ -201,9 +208,9 @@ def model_Conv1D():
     print("Concat 1", concat_1.shape)
 
     #layer 10-12
-    hidden_10 = Conv1D(128, (2, ), activation='relu', padding='same')(concat_1)
-    hidden_11 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_10)
-    hidden_12 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_11)
+    hidden_10 = Conv1D(128, (5, ), activation='relu', padding='same')(concat_1)
+    hidden_11 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_10)
+    hidden_12 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_11)
     print("Hidden 12", hidden_12.shape)
 
     #upsampling layer 2
@@ -212,18 +219,22 @@ def model_Conv1D():
     print("Concat 2", concat_2.shape)
 
     #layer 13-15
-    hidden_13 = Conv1D(64, (2, ), activation='relu', padding='same')(concat_2)
-    hidden_14 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_13)
-    hidden_15 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_14)
+    hidden_13 = Conv1D(64, (5, ), activation='relu', padding='same')(concat_2)
+    hidden_14 = Conv1D(64, (5, ), activation='relu', padding='same')(hidden_13)
+    hidden_15 = Conv1D(64, (5, ), activation='relu', padding='same')(hidden_14)
     print(hidden_15.shape)
 
-    decoded = Conv1D(1, (1 ), activation='relu', padding='same')(hidden_15)
+    decoded = Conv1D(1, (1, ), activation='relu', padding='same')(hidden_15)
     print(decoded.shape)
 
     ada = tf.keras.optimizers.Adadelta(learning_rate=0.0001, rho=0.95, epsilon=1e-07, name="Adadelta")
 
+    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    name='Adam')
+
+
     model = Model(input_scan, decoded)
-    model.compile(optimizer=ada, loss='cosine_similarity', metrics=['accuracy'])
+    model.compile(optimizer=adam, loss='cosine_similarity', metrics=['accuracy'])
     return model
 
 def model_deep_autoencoder():
@@ -284,10 +295,10 @@ def initialize_autoencoder_low_res():
 
 
 def fit_autoencoder(autoencoder, X_data, y_data):   
-    batch_size = 512
-    split = 0.7
+    batch_size = 32
+    split = 0.5
     test_size = int(batch_size * (1-split))
-    epochs = 5
+    epochs = 40
     idx = X_data.shape[0]
 
     test_loss = []
@@ -315,20 +326,19 @@ def fit_autoencoder(autoencoder, X_data, y_data):
         
         val_loss = []
         acc_loss = []
-        for step, (test_indices, train_indices) in enumerate(zip(training_indices, testing_indices)):
-            
+        for step, train_indices in enumerate(training_indices):
             start_train = train_indices[0]
             end_train = train_indices[1]
-
+          
+            train_dict = autoencoder.train_on_batch(X_data[start_train:end_train], y_data[start_train:end_train], return_dict=True)
+            val_loss.append(train_dict['loss'])
+      
+        for test_indices in training_indices:
             start_test = test_indices[0]
             end_test = test_indices[1]
-
-            train_dict = autoencoder.train_on_batch(X_data[start_train:end_train], y_data[start_train:end_train], return_dict=True)
             test_dict = autoencoder.test_on_batch(X_data[start_test:end_test], y_data[start_test:end_test], return_dict=True)
-            
-            val_loss.append(train_dict['loss'])
             acc_loss.append(test_dict['loss'])
-       
+
         test_loss.append(np.mean(acc_loss))
         train_loss.append(np.mean(val_loss))
 
