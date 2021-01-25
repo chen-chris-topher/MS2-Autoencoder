@@ -18,6 +18,38 @@ from scipy.stats import binned_statistic
 from tensorflow.keras import models
 from pyteomics import mzxml
 from pyteomics import mgf
+
+
+def yank_pairs():
+    dir = './test_dataset/output_nf_2'
+    file = 'ordered_list2.json'
+    all_folders =os.listdir(dir)
+    all_files = [os.path.join(dir,item, file) for item in all_folders]
+    new_dict = {}
+    count = 0
+    for file in all_files:
+        new_dict[file] = {}
+        new_dict[file]['low'] = []
+        new_dict[file]['high']=[]
+
+    for file in all_files:
+        if os.path.exists(file):
+            with open(file) as f:
+                data = json.load(f)
+
+            for thing in data:
+                if len(thing) != 0:
+                    for dict in thing:
+                        count += 1
+                        dict[0]['filename'] = file
+                        dict[1]['filename'] = file
+                        new_dict[file]['low'].append(dict[0])
+                        new_dict[file]['high'].append(dict[1])
+    print(count)
+    with open('./test_dataset/pairs.txt', 'w') as json_file:
+        json.dump(new_dict, json_file)
+
+
 def read_mzXML(filename):
     data = mzxml.MzXML(filename)
     return(data)
@@ -45,7 +77,7 @@ def extract_spectra(data, filename):
         max = np.max(intensity_array)
         intensity_array = np.true_divide(intensity_array, max)
         intensity_array[intensity_array < 0.05] = 0.0
-        
+       
         intensity_array_list.append(intensity_array)
         
         processed_dict[index]  = {'scan':scan, 'retentionTime':rt, \
@@ -120,7 +152,7 @@ def replace_scans(processed_dict, prediction_matrix, filename):
                         new_inten.append(ogin)
             else:
                 pass
-	    """
+        """
         #rint(track_bins) 
         #print(new_mz)
         #print(new_inten)
@@ -128,7 +160,7 @@ def replace_scans(processed_dict, prediction_matrix, filename):
 
         #ile_data[scan]['m/z array'] = new_mz
         #ile_data[scan]['intensity array'] = new_inten
- 		
+        
         predict_inten = prediction_matrix[count,:].tolist()
 
         mz_possible = list(range(0,2000))
@@ -191,18 +223,6 @@ def get_npz():
 
     return(low_peaks, high_peaks)
 
-def normalize_data(peaks):
-    new_peaks = np.empty((peaks.shape[0],2000))
-     
-    for count, item in enumerate(peaks):
-        #tem = np.add.reduceat(item, np.arange(0, item.shape[0], 100), axis=0) 
-        max = np.max(item) 
-        #sys.exit(0)
-        item = np.true_divide(item, max)
-        item[item < 0.05] = 0.0    
-        new_peaks[count] = item
-
-    return(new_peaks)
 def supp_info_parse(low_dset, high_dset):
     target = './ready_array.npz'
     data = np.load(target)
@@ -212,8 +232,11 @@ def supp_info_parse(low_dset, high_dset):
     low_supp = split_data[0]
     high_supp = split_data[1]
     
-    format_mgf(low_dset, low_supp, 'low')
-    format_mgf(high_dset, high_supp, 'high')
+
+    return(low_supp, high_supp)
+    #format_mgf(low_dset, low_supp, 'low')
+    #format_mgf(high_dset, high_supp, 'high')
+
 
 def format_mgf(dset, supp, type, features=None):
     count = 0
@@ -261,20 +284,43 @@ def format_mgf(dset, supp, type, features=None):
     return(return_feat)
 
 def get_hdf5():
-    target = './hong_data.hdf5'
+    target = './test_dataset/hong_dataset.hdf5'
     hf = h5py.File(target, 'r')
-    low_dset = hf.get('low_peaks').value
-    high_dset = hf.get('high_peaks').value
-    low_dset = normalize_data(low_dset)
-    high_dset = normalize_data(high_dset)
-    return(low_dset,high_dset)
+    low_dset = hf['low_peaks']
+    high_dset = hf['high_peaks']
+    
+    first_pass = True
+    for low, high in zip(low_dset, high_dset):
+        low = np.add.reduceat(low, np.arange(0, low.shape[0], 100), axis=0)        
+        high = np.add.reduceat(high, np.arange(0, high.shape[0], 100), axis=0)
+        
+        low_max = np.max(low)
+        high_max = np.max(high)
+        
+        if low_max == 0 or high_max == 0:
+            continue
 
-def get_sup():
-    target = './hong_add_info.hdf5'
-    hf = h5py.File(target, 'r')
-    low_dset = hf.get('low_peaks').value
-    high_dset = hf.get('high_peaks').value
-    return(low_dset, high_dset)
+        low = np.true_divide(low, low_max)
+        low[low < 0.05] = 0.0    
+
+        high = np.true_divide(high, high_max)
+        high[high < 0.05] = 0.0
+        
+        low_count = np.count_nonzero(low)
+        high_count = np.count_nonzero(high)
+
+        if low_count == 0 or high_count == 0:
+            continue
+	
+        if first_pass is True:
+            low_numpy = low
+            high_numpy = high
+            first_pass = False
+        else:
+            low_numpy = np.vstack((low_numpy, low))
+            high_numpy = np.vstack((high_numpy, high))
+
+    return(low_numpy,high_numpy)
 
 def mirror_plot(spec1, spec2):
     import spectrum_utils.plot as sup
@@ -287,7 +333,9 @@ def mirror_plot(spec1, spec2):
     for thing,m in zip(spec1,mz):
         if thing != 0:
             print(thing, m)
+
     for spec in spec_list:
+
         spectra.append(sus.MsmsSpectrum(0, 0,
                                         0, mz, spec,
                                          retention_time=0.0))
@@ -297,56 +345,63 @@ def mirror_plot(spec1, spec2):
     sup.mirror(spectrum_top, spectrum_bottom, ax=ax)
     plt.show()
 
-def format_mgf_from_file(dset, dset_type, features=None, final_param=None):
-    target_file_spectra = './pairs.txt'
+
+
+def format_mgf_from_file(dset, sup, features=None, final_param=None):
+    """
+    pairs.txt 
+    """
+    target_file_spectra = './test_dataset/pairs.txt'
     with open(target_file_spectra) as hf:
         data = json.load(hf)
-    
-    low_supp = np.load('%s.npy' %dset_type)
-    
+
+    dset_type = final_param 
+    if dset_type == 'predictions':
+        dset_type = 'low'
     spectra_list = [] #defines where we will save mgf appropriate spectra
     count = 0
     return_feat = []
     success_count = 0
     mass_range = range(0,2000)
-
+    
     #loop over dataset and assoicated file names
-    for item, spectra in zip(low_supp, dset):     
-        if 'nan' == spectra[0]:
-            continue
-        
+    for spectra in dset:
+        item = sup[count]
         new_inten = []
         new_mz = [] 
         rt = round(float(item[0]), 6)
-        intensity = float(item[1])
+        intensity = round(float(item[1]), 6)
         mz = round(float(item[2]), 6)
         key = -1 
-        
-
+         
         if mz == 0:
+            count += 1
             continue
+            
         if intensity == 0:
+            count += 1
             continue
+
         
+        """ 
         if features:
-            a = features[count][0]    
+            a = float(features[count][0]) 
             if mz + 0.01 >= a and mz - 0.01 <= a:
                 pass
             else:
-                
                 continue
+        """
 
-        #if we make it back here it's a legit spectra
         filename = item[3]
 
         if filename == 'unavailable':
            continue
         count += 1
+        
         fil = filename.replace('.mzXML', '_outdir').replace('.mzML', '_outdir')
-        line = os.path.join('./output_nf_2', fil, 'ordered_list2.json')
-       
-        for spectra_info_file in data[line][dset_type]:     
-            
+        line = os.path.join('./test_dataset/output_nf_2', fil, 'ordered_list2.json')
+        
+        for spectra_info_file in data[line][dset_type]:         
             spectra_rt = round(spectra_info_file['retentionTime'], 6)
             spectra_mz = round(spectra_info_file['precursorMz'], 6)      
             if mz + 0.01 >= spectra_mz and mz - 0.01 <= spectra_mz:       
@@ -366,8 +421,7 @@ def format_mgf_from_file(dset, dset_type, features=None, final_param=None):
         for spec_inten, spec_mass in zip(spectra, mass_range):
             if spec_inten > 0:
                 for actual_mass, actual_intent in zip(mz_array, intensity_array):
-                    if math.floor(actual_mass) == spec_mass and actual_intent > 0:
-                        
+                    if math.floor(actual_mass) == spec_mass and actual_intent > 0: 
                         if math.floor(actual_mass) not in seen:
                             seen.append(math.floor(actual_mass))
                             seen_int.append(actual_intent)
@@ -386,47 +440,160 @@ def format_mgf_from_file(dset, dset_type, features=None, final_param=None):
                                 new_inten.append(spec_inten)
                                 new_mz.append(actual_mass)
         
-        new_inten =[item * intensity for item in new_inten] 
+        #ew_inten =[item if item > 0.05 else 0.0 for item in new_inten] 
+        new_inten =[item * intensity for item in new_inten]
+        
         parameters = {"FEATURE_ID": count, 'FILENAME': filename , 'PEPMASS' : str(mz), "SCANS": key, "RTINSECONDS" : rt, "CHARGE" : "1+", "MSLEVEL" : "2", "PRECURSORINTEN" : intensity}
         spectra = [{'m/z array' : new_mz, 'intensity array': new_inten, 'params': parameters}]
         spectra_list.extend(copy.deepcopy(spectra))
         return_feat.append((mz, key))
        
-    if not final_param:
-        mgf.write(spectra = spectra_list, output = "./%s_5.mgf" %dset_type, write_charges = False, use_numpy = True)
+    if final_param == 'low' or final_param == 'high':
+        mgf.write(spectra = spectra_list, output = "./%s_30.mgf" %dset_type, write_charges = False, use_numpy = True)
     else:
-        mgf.write(spectra = spectra_list, output = "./predictions_5.mgf", write_charges = False, use_numpy = True)
+        mgf.write(spectra = spectra_list, output = "./predictions_30.mgf", write_charges = False, use_numpy = True)
     return(return_feat)
 
+def sup_filename():
+    all_filenames = os.listdir('./test_dataset/hong_outdir')    
+    all_file_locations = [os.path.join('./test_dataset/hong_outdir', item, 'output.json') for item in all_filenames]
+    
+    sup_low_dict = {}
+    sup_high_dict = {}
+    count = 0
+
+    for sup_file in all_file_locations:
+        with open(sup_file, 'r') as jf:
+            data = json.load(jf)
+        filename = data['filename']
+        array = data['ready_array']
+       
+        
+        low_split = array[0:][::2]
+        high_split = array[1:][::2]
+        
+        for low_s, high_s in zip(low_split, high_split):
+            low_s.append(filename)
+            high_s.append(filename)
+            sup_low_dict[count] = low_s
+            sup_high_dict[count] = high_s
+            count += 1
+           
+    return(sup_low_dict, sup_high_dict) 
 
 def main():
-    filename = './test_dataset/PHT_20_018_Cort_1000.mzXML'
-    #parser = argparse.ArgumentParser(description='ML process file')
-    #parser.add_argument('filename')
-    #args = parser.parse_args()
     
-    model_name = './models/autoencoder/conv1d_22.h5'
+    model_name = './models/conv1d/conv1d_30.h5'
     
     low_dset, high_dset = get_hdf5()
     print(low_dset.shape)
     print(high_dset.shape)
-
-    predictions = predict_high(model_name, low_dset)
-    mirror_plot(predictions[124], high_dset[124])
+    #redictions_0 = np.load('./gnps_predictions.npy')
     
-    #FORMAT THINGS BASED ON
-    #features = format_mgf(low_dset, low_sup, "low")
-    #format_mgf(predictions, low_sup, "predict", features)
-    #format_mgf(high_dset, high_sup, "low", features)
+    
+    low_sup, high_sup = sup_filename()
+   
+    predictions = predict_high(model_name, low_dset)
+    np.save('./gnps_predictions.npy', predictions)
+    """
+    fp =True
+     
+    for row in predictions_0: 
+        sum_val = np.sum(row)
+        row = row / sum_val
+        row[row < 0.05] = 0.0
+        
+        if fp == True:
+            fp = False
+            predictions = row
+        else:
+            predictions = np.vstack((predictions, row))
+    
+    #mirror_plot(predictions[100], high_dset[100])
+    #ys.exit(0)
+    print(predictions)
+    """
+    features = format_mgf_from_file(low_dset, low_sup, None,'low')
+    format_mgf_from_file(high_dset, high_sup, features, 'high')
+    format_mgf_from_file(predictions, low_sup, features, 'predictions') 
+    
+    sys.exit(0)
+    mgf_high_mz = []
+    mgf_high_in = []
+    with open('./high_29_3.mgf', 'r') as hf:
+        content = hf.readlines()
+    content = [x.strip() for x in content]
+    start = False
+    next_thing = False
+    for item in content:
+        if item == 'SCANS=3621':
+            start = True    
+        if next_thing is True:
+            if item != 'END IONS':
+                
+                mgf_high_mz.append(item.split(' ')[0])
+                mgf_high_in.append(item.split(' ')[1])
+            else:
+                next_thing = False
+                start = False
+        if start is True:
+            if item.startswith('PRECURSORINTEN'):
+                next_thing = True 
+        
 
-    #low_peaks, high_peaks = get_npz()
-    #supp_info_parse(low_peaks, high_peaks)
+    mgf_predict_mz = []
+    mgf_predict_in = []
+    with open('./low_29_3.mgf', 'r') as hf:
+        content = hf.readlines()
+    content = [x.strip() for x in content]
+    start = False
+    next_thing = False
+    for item in content:
+        if item == 'SCANS=3621':
+            start = True    
+        if next_thing is True:
+            if item != 'END IONS':
+                
+                mgf_predict_mz.append(item.split(' ')[0])
+                mgf_predict_in.append(item.split(' ')[1])
+            else:
+                next_thing = False
+                start = False
+        if start is True:
+            if item.startswith('PRECURSORINTEN'):
+                next_thing = True 
+    
+    lib_mz = []
+    lib_in = []
+    with open('../indole.mgf','r') as hf:
+         content = hf.readlines()
+    content = [x.strip() for x in content]
+    next_thing = False
+    for item in content: 
+        if next_thing is True:
+            if item != 'END IONS':
+                lib_mz.append(item.split('\t')[0])
+                lib_in.append(item.split('\t')[1])
+        
+        if item.startswith('CHARGE'):
+            next_thing = True 
 
-    #features = format_mgf_from_file(low_dset, 'low')
-    #format_mgf_from_file(high_dset, 'high', features)
-    #format_mgf_from_file(predictions, 'low', features, 'predictions') 
-    #ormat_mgf_from_file(high_dset, high_sup)
-    #ormat_mgf_from_file(predictions, low_sup)
+    
+    import spectrum_utils.plot as sup
+    import spectrum_utils.spectrum as sus
+
+    spectra = []
+    print("Predict", mgf_predict_mz, mgf_predict_in)
+    print("High", mgf_high_mz, mgf_high_in)
+    print("Predictions Top, High Bottom")
+    spectra.append(sus.MsmsSpectrum(0, 0, 0, mgf_predict_mz, mgf_predict_in,retention_time=0.0))
+    spectra.append(sus.MsmsSpectrum(0, 0, 0, mgf_high_mz, mgf_high_in,retention_time=0.0))
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    spectrum_top, spectrum_bottom = spectra
+    sup.mirror(spectrum_top, spectrum_bottom, ax=ax)
+    plt.show()
+
 
 
     #data = read_mzXML(filename)

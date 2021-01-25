@@ -165,71 +165,45 @@ def model_Conv1D():
     input_size = 2000
     input_scan = Input(shape=(input_size, 1))
    
-    """
-    pre_1 = Conv1D(32, (5, ), activation='relu', padding='same')(input_scan)
-    pre_2 = Conv1D(32, (5, ), activation='relu', padding='same')(input_scan)
-    pre_3 = Conv1D(32, (5, ), activation='relu', padding='same')(input_scan)
-    """
-
-
     #layers 1-3 convolution
-    hidden_1 = Conv1D(64, (5, ), activation='relu', padding='same')(input_scan)
-    hidden_2 = Conv1D(64, (5, ), activation='relu', padding='same')(hidden_1)
-    hidden_3 = Conv1D(64, (5, ), activation='relu', padding='same')(hidden_2)
-    print(hidden_3.shape)
-
-    #max pooling layer 1
-    hidden_3_copy = hidden_3
-    max_pool_1 = MaxPooling1D(2)(hidden_3)
+    hidden_1 = Conv1D(64, (3,), activation='relu', padding='same')(input_scan)
+    hidden_2 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_1)
+     
+    max_pool_1 = MaxPooling1D(2)(hidden_2)
     print(max_pool_1.shape)
 
     #layers 4-6
-    hidden_4 = Conv1D(128, (5, ), activation='relu', padding='same')(max_pool_1)
-    hidden_5 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_4)
-    hidden_6 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_5)
-    print(hidden_6.shape)
-
-    #max pooling layer 2
-    hidden_6_copy = hidden_6
+    hidden_5 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_1)
+    hidden_6 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_5)
+    
     max_pool_2 = MaxPooling1D(2)(hidden_6)
-    print("Max Pool 2", max_pool_2.shape)
 
-    #layers 7-9 ~ Encoded!
-    hidden_7 = Conv1D(128, (5, ), activation='relu', padding='same')(max_pool_2)
-    hidden_8 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_7)
-    hidden_9 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_8)
-    print("Hidden 9", hidden_9.shape)
-
-    #upsampling layer 1 
-    up_1 = UpSampling1D(2)(hidden_9)
-    print("Up 1", up_1.shape)
-    print(hidden_6_copy.shape)
-    concat_1 = tf.keras.layers.Concatenate(axis=2)([up_1, hidden_6_copy])
-    print("Concat 1", concat_1.shape)
-
-    #layer 10-12
-    hidden_10 = Conv1D(128, (5, ), activation='relu', padding='same')(concat_1)
-    hidden_11 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_10)
-    hidden_12 = Conv1D(128, (5, ), activation='relu', padding='same')(hidden_11)
-    print("Hidden 12", hidden_12.shape)
-
-    #upsampling layer 2
+    hidden_9 = Conv1D(512, (3,), activation='relu', padding='same')(max_pool_2)
+    hidden_10 = Conv1D(512, (3, ), activation='relu', padding='same')(hidden_9)
+  
     up_2 = UpSampling1D(2)(hidden_10)
-    concat_2 = tf.keras.layers.Concatenate(axis=2)([up_2, hidden_3_copy])
+    concat_2 = tf.keras.layers.Concatenate(axis=2)([up_2, hidden_6])
     print("Concat 2", concat_2.shape)
 
-    #layer 13-15
-    hidden_13 = Conv1D(64, (5, ), activation='relu', padding='same')(concat_2)
-    hidden_14 = Conv1D(64, (5, ), activation='relu', padding='same')(hidden_13)
-    hidden_15 = Conv1D(64, (5, ), activation='relu', padding='same')(hidden_14)
-    print(hidden_15.shape)
+    #layer 10-12
+    hidden_13 = Conv1D(128, (3, ), activation='relu', padding='same')(concat_2)
+    hidden_14 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_13)
+    
+    #upsampling layer 1 
+    up_3 = UpSampling1D(2)(hidden_14)
+    concat_3 = tf.keras.layers.Concatenate(axis=2)([up_3, hidden_2])
 
-    decoded = Conv1D(1, (1, ), activation='relu', padding='same')(hidden_15)
+    #layer 16-18
+    hidden_17 = Conv1D(64, (3, ), activation='relu', padding='same')(concat_3)
+    hidden_18 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_17)
+  
+    decoded = Conv1D(1, (1, ), activation='relu', padding='same')(hidden_18)
     print(decoded.shape)
 
+    sdg = tf.keras.optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False, name="SGD")
     ada = tf.keras.optimizers.Adadelta(learning_rate=0.0001, rho=0.95, epsilon=1e-07, name="Adadelta")
 
-    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    adam = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
     name='Adam')
 
 
@@ -295,10 +269,10 @@ def initialize_autoencoder_low_res():
 
 
 def fit_autoencoder(autoencoder, X_data, y_data):   
-    batch_size = 32
+    batch_size = 256
     split = 0.5
     test_size = int(batch_size * (1-split))
-    epochs = 40
+    epochs = 25
     idx = X_data.shape[0]
 
     test_loss = []
