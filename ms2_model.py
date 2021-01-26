@@ -11,7 +11,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.regularizers import l1
-
+from tensorflow.keras.metrics import CosineSimilarity
 from scipy.spatial.distance import cosine
 import numpy as np
 import pickle
@@ -162,53 +162,63 @@ def load_history(history_file):
 
 #changed aritechture to follow U-net style
 def model_Conv1D():
-    input_size = 2000
-    input_scan = Input(shape=(input_size, 1))
-   
-    #layers 1-3 convolution
-    hidden_1 = Conv1D(64, (3,), activation='relu', padding='same')(input_scan)
+    input_scan = Input(shape=(2000,1))
+  
+    print(input_scan.shape)
+    #64 * 2000
+    hidden_1 = Conv1D(1, (3,), activation='relu', padding='same')(input_scan)
     hidden_2 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_1)
-     
-    max_pool_1 = MaxPooling1D(2)(hidden_2)
-    print(max_pool_1.shape)
+    hidden_4 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_2)
+    print("Hidden 4" , hidden_4.shape)
 
-    #layers 4-6
+    hidden_4_copy = hidden_4
+    max_pool_1 = MaxPooling1D(2)(hidden_4)
+    print("Max Pool 1", max_pool_1.shape)
+
     hidden_5 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_1)
     hidden_6 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_5)
+    hidden_7 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_6)
+    print("Hidden 7", hidden_7.shape)
+
+    hidden_8_copy = hidden_7
+    max_pool_2 = MaxPooling1D(2)(hidden_7)
+
+    hidden_9 = Conv1D(256, (3,), activation='relu', padding='same')(max_pool_2)
+    hidden_10 = Conv1D(256, (3,), activation='relu', padding='same')(hidden_9)
+    hidden_11 = Conv1D(256, (3, ), activation='relu', padding='same')(hidden_10)
+    print("Hidden 11", hidden_11.shape)
     
-    max_pool_2 = MaxPooling1D(2)(hidden_6)
+    up_1 = UpSampling1D(2)(hidden_11)
+    conv_up_1 = Conv1D(128, (2, ), activation='relu', padding='same')(up_1)
+    concat_1 = tf.keras.layers.Concatenate(axis=2)([conv_up_1, hidden_8_copy])
 
-    hidden_9 = Conv1D(512, (3,), activation='relu', padding='same')(max_pool_2)
-    hidden_10 = Conv1D(512, (3, ), activation='relu', padding='same')(hidden_9)
-  
-    up_2 = UpSampling1D(2)(hidden_10)
-    concat_2 = tf.keras.layers.Concatenate(axis=2)([up_2, hidden_6])
-    print("Concat 2", concat_2.shape)
-
-    #layer 10-12
-    hidden_13 = Conv1D(128, (3, ), activation='relu', padding='same')(concat_2)
+    hidden_13 = Conv1D(128, (3, ), activation='relu', padding='same')(concat_1)
     hidden_14 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_13)
-    
-    #upsampling layer 1 
-    up_3 = UpSampling1D(2)(hidden_14)
-    concat_3 = tf.keras.layers.Concatenate(axis=2)([up_3, hidden_2])
+    hidden_15 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_14)
 
-    #layer 16-18
-    hidden_17 = Conv1D(64, (3, ), activation='relu', padding='same')(concat_3)
-    hidden_18 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_17)
+    up_2 = UpSampling1D(2)(hidden_15)
+    conv_up_2 = Conv1D(64, (2, ), activation='relu', padding='same')(up_2)
+    concat_2 = tf.keras.layers.Concatenate(axis=2)([conv_up_2, hidden_4_copy])
+
+    
+    hidden_17 = Conv1D(64, (3, ), activation='relu', padding='same')(concat_2)
+    hidden_18= Conv1D(64, (3, ), activation='relu', padding='same')(hidden_17)
+    hidden_19 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_18)
   
-    decoded = Conv1D(1, (1, ), activation='relu', padding='same')(hidden_18)
+    decoded_1 = Conv1D(2, (3, ), activation='relu', padding='same')(hidden_19)
+    decoded = Conv1D(1, (3, ), activation='relu', padding='same')(decoded_1)
     print(decoded.shape)
 
     sdg = tf.keras.optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False, name="SGD")
     ada = tf.keras.optimizers.Adadelta(learning_rate=0.0001, rho=0.95, epsilon=1e-07, name="Adadelta")
 
-    adam = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
     name='Adam')
-
-
+    
+    cosine_loss = tf.keras.losses.CosineSimilarity(axis=1)
+    metric = tf.keras.metrics.CosineSimilarity(name='cosine_similarity', dtype=None, axis=1)
     model = Model(input_scan, decoded)
-    model.compile(optimizer=adam, loss='cosine_similarity', metrics=['accuracy'])
+    model.compile(optimizer=adam, loss=cosine_loss, metrics=[metric])
     return model
 
 def model_deep_autoencoder():
@@ -269,7 +279,7 @@ def initialize_autoencoder_low_res():
 
 
 def fit_autoencoder(autoencoder, X_data, y_data):   
-    batch_size = 256
+    batch_size = 32 
     split = 0.5
     test_size = int(batch_size * (1-split))
     epochs = 25
@@ -279,6 +289,7 @@ def fit_autoencoder(autoencoder, X_data, y_data):
     train_loss = []
     i = 0
     list_of_indices = []
+    
     while i < idx:
         temp_tuple = (i, i+batch_size+test_size)
         list_of_indices.append(temp_tuple)
@@ -300,10 +311,13 @@ def fit_autoencoder(autoencoder, X_data, y_data):
         
         val_loss = []
         acc_loss = []
+        cos = []
         for step, train_indices in enumerate(training_indices):
             start_train = train_indices[0]
             end_train = train_indices[1]
-          
+            
+            if step == 0 and epoch == 0:
+                print("Data shape", X_data[start_train:end_train].shape)
             train_dict = autoencoder.train_on_batch(X_data[start_train:end_train], y_data[start_train:end_train], return_dict=True)
             val_loss.append(train_dict['loss'])
       
@@ -312,12 +326,15 @@ def fit_autoencoder(autoencoder, X_data, y_data):
             end_test = test_indices[1]
             test_dict = autoencoder.test_on_batch(X_data[start_test:end_test], y_data[start_test:end_test], return_dict=True)
             acc_loss.append(test_dict['loss'])
+            cos.append(test_dict['cosine_similarity'])
+            
 
         test_loss.append(np.mean(acc_loss))
         train_loss.append(np.mean(val_loss))
-
+        print('Cosine Similarity Test ' + str(np.mean(cos)))
         print('Validation Loss: ' + str(np.mean(val_loss)))
         print('Training Loss: ' + str(np.mean(acc_loss)))
+        
         if epoch == 0:
             print(autoencoder.summary())
 
