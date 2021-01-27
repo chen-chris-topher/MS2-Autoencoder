@@ -449,9 +449,9 @@ def format_mgf_from_file(dset, sup, features=None, final_param=None):
         return_feat.append((mz, key))
        
     if final_param == 'low' or final_param == 'high':
-        mgf.write(spectra = spectra_list, output = "./%s_30.mgf" %dset_type, write_charges = False, use_numpy = True)
+        mgf.write(spectra = spectra_list, output = "./%s_30_1.mgf" %dset_type, write_charges = False, use_numpy = True)
     else:
-        mgf.write(spectra = spectra_list, output = "./predictions_30.mgf", write_charges = False, use_numpy = True)
+        mgf.write(spectra = spectra_list, output = "./predictions_30_1.mgf", write_charges = False, use_numpy = True)
     return(return_feat)
 
 def sup_filename():
@@ -488,14 +488,14 @@ def main():
     low_dset, high_dset = get_hdf5()
     print(low_dset.shape)
     print(high_dset.shape)
-    #redictions_0 = np.load('./gnps_predictions.npy')
+    predictions_0 = np.load('./gnps_predictions.npy')
     
     
     low_sup, high_sup = sup_filename()
    
-    predictions = predict_high(model_name, low_dset)
-    np.save('./gnps_predictions.npy', predictions)
-    """
+    #predictions = predict_high(model_name, low_dset)
+    #np.save('./gnps_predictions.npy', predictions)
+    """ 
     fp =True
      
     for row in predictions_0: 
@@ -511,22 +511,22 @@ def main():
     
     #mirror_plot(predictions[100], high_dset[100])
     #ys.exit(0)
-    print(predictions)
-    """
+    #print(predictions)
+    
     features = format_mgf_from_file(low_dset, low_sup, None,'low')
     format_mgf_from_file(high_dset, high_sup, features, 'high')
     format_mgf_from_file(predictions, low_sup, features, 'predictions') 
     
-    sys.exit(0)
+    """
     mgf_high_mz = []
     mgf_high_in = []
-    with open('./high_29_3.mgf', 'r') as hf:
+    with open('./predictions_30_1.mgf', 'r') as hf:
         content = hf.readlines()
     content = [x.strip() for x in content]
     start = False
     next_thing = False
     for item in content:
-        if item == 'SCANS=3621':
+        if item == 'SCANS=2502':
             start = True    
         if next_thing is True:
             if item != 'END IONS':
@@ -543,13 +543,13 @@ def main():
 
     mgf_predict_mz = []
     mgf_predict_in = []
-    with open('./low_29_3.mgf', 'r') as hf:
+    with open('./high_30_1.mgf', 'r') as hf:
         content = hf.readlines()
     content = [x.strip() for x in content]
     start = False
     next_thing = False
     for item in content:
-        if item == 'SCANS=3621':
+        if item == 'SCANS=2502':
             start = True    
         if next_thing is True:
             if item != 'END IONS':
@@ -565,7 +565,7 @@ def main():
     
     lib_mz = []
     lib_in = []
-    with open('../indole.mgf','r') as hf:
+    with open('../2502.mgf','r') as hf:
          content = hf.readlines()
     content = [x.strip() for x in content]
     next_thing = False
@@ -586,8 +586,8 @@ def main():
     print("Predict", mgf_predict_mz, mgf_predict_in)
     print("High", mgf_high_mz, mgf_high_in)
     print("Predictions Top, High Bottom")
-    spectra.append(sus.MsmsSpectrum(0, 0, 0, mgf_predict_mz, mgf_predict_in,retention_time=0.0))
     spectra.append(sus.MsmsSpectrum(0, 0, 0, mgf_high_mz, mgf_high_in,retention_time=0.0))
+    spectra.append(sus.MsmsSpectrum(0, 0, 0, mgf_predict_mz, mgf_predict_in,retention_time=0.0))
 
     fig, ax = plt.subplots(figsize=(12, 6))
     spectrum_top, spectrum_bottom = spectra
@@ -602,6 +602,6 @@ def main():
     #print(predictions.shape)
 
     #replace_scans(processed_dict, predictions, filename)
-
+    
 if __name__ == "__main__":  
     main()

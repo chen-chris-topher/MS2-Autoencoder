@@ -17,7 +17,7 @@ data = os.path.join(dirname, args.data)
 model_path = os.path.join(dirname, args.model)
 
 #my line
-model_path = "./models/autoencoder/conv1d_22.h5"
+model_path = "./models/conv1d/conv1d_32.h5"
 
 with tf.device('/cpu:0'):
     model = load_model(model_path)
@@ -25,7 +25,7 @@ with tf.device('/cpu:0'):
     f = h5py.File(data, 'r')
     dataset_low = f['low_peaks']
     dataset_high = f['high_peaks']
-    prediction = ms2_model.predict_model(model, dataset_low)
+    prediction = ms2_model.predict_model(model, dataset_low[:5000])
     #evaluation = ms2_model.eval_model(model, dataset_low, dataset_high)
     #print('Testing accuracy: ', evaluation[1])
 

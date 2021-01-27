@@ -424,7 +424,7 @@ def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):
             output.write(json)
         print('saved dict to "output.json"')
 
-def output_list(in_list, directory, two=None, ready_mass = None):
+def output_list(in_list, directory, two=None, ready_mass = None,dict=True):
     import numpy as np
     if two == True:
         filename = directory + '/ready_array2.npz'
@@ -434,6 +434,7 @@ def output_list(in_list, directory, two=None, ready_mass = None):
         filename = directory + '/ready_mass.npz'
         np.savez_compressed(filename, in_list)
         print('saved ready_array to %s' %filename)
+    
     else:
         filename = directory + '/ready_array.npz'
         np.savez_compressed(filename, in_list)

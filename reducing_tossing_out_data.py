@@ -3,6 +3,60 @@ import numpy as np
 from scipy.spatial.distance import cosine
 
 
+def test_data():
+    filename = 'shuffled_data_zeros.hdf5'
+    
+    #open the original file
+    with h5py.File(filename, 'r') as hf:
+        dset_low = hf['low_peaks']
+        dset_high = hf['high_peaks']
+        
+        for low in dset_low:
+            for item in low:
+                if item != 0:
+                    print(item)
+    
+def get_rid_blank_spectra():
+    filename = 'shuffled_data_zeros_1.hdf5'
+    
+    #open the original file
+    with h5py.File(filename, 'a') as hf:
+        dset_low = hf['low_peaks']
+        dset_high = hf['high_peaks']
+        
+        with h5py.File('./shuffled_data_zeros_2.hdf5', 'w') as nhf:
+            n_low  = nhf.create_dataset('low_peaks', shape=(1, 2000), maxshape=(None, 2000), compression='gzip')
+            n_high = nhf.create_dataset('high_peaks', shape=(1, 2000), maxshape=(None, 2000), compression='gzip')
+
+            for low, high in zip(dset_low, dset_high):
+                low_max = max(low)
+                high_max = max(high)
+
+                low = np.true_divide(low, low_max).tolist()
+                high = np.true_divide(high, high_max).tolist()
+                
+                low =[item if item >0.05 else 0.0 for item in low]
+                high = [item if item >0.05 else 0.0 for item in high]
+                
+                
+                cos = 1 - cosine(low, high)            
+                if cos < 0.7:
+                    continue
+
+                if np.count_nonzero(low) != 0 and np.count_nonzero(high) != 0:
+                    size = n_low.shape
+                    curr_len = size[0]
+                    new_len = curr_len + 1
+                        
+                    n_low.resize((new_len, 2000))
+                    n_high.resize((new_len, 2000))
+                        
+                    n_low[curr_len, :] = low
+                    n_high[curr_len, :] = high
+                    
+                    print(n_low.shape)
+
+
 def concat_hdf5s():
     file_list = ['shuffled_data.hdf5', 'cos_red_data_10.hdf5']
     
@@ -63,4 +117,4 @@ def main():
                     print(n_low.shape)
 
 if __name__ == "__main__":
-    concat_hdf5s()
+    get_rid_blank_spectra()

@@ -36,12 +36,12 @@ else:
     print('no val data')
 
 #ms2_model.session_config(1)
-
+print(dataset_low.shape)
 if model=='conv1d':
     model = ms2_model.model_Conv1D()
     model, loss_dict = ms2_model.fit_autoencoder(model, dataset_low, dataset_high)
-    ms2_model.save_model(model, join(outdir, 'conv1d/', 'conv1d_25.h5'))
-    ms2_model.save_history(loss_dict, join(outdir, 'conv1d/', 'conv1d_25_history.pickle'))
+    ms2_model.save_model(model, join(outdir, 'conv1d/', 'conv1d_32.h5'))
+    ms2_model.save_history(loss_dict, join(outdir, 'conv1d/', 'conv1d_32_history.pickle'))
 
 elif model=='deepautoencoder':
     autoencoder = ms2_model.model_deep_autoencoder()

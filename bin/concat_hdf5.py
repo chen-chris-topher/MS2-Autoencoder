@@ -171,7 +171,7 @@ def get_file_list(path, data_name):
     return file_list
 
 def wrangle_additional_data(file_list, name='add_info.hdf5'):
-
+    files = []
     with h5py.File(name, 'w') as f: #create empty hdf5 file with two datasets
         dataset = f.create_dataset('low_peaks', shape=(1, 3), maxshape=(None, 3),compression='gzip')
         dataset = f.create_dataset('high_peaks', shape=(1, 3), maxshape=(None, 3),compression='gzip')
@@ -198,6 +198,7 @@ def wrangle_additional_data(file_list, name='add_info.hdf5'):
             high = high_peaks.reshape(len(high_peaks), np.prod(high_peaks.shape[1:]))
             print(high_peaks.shape)        
             with h5py.File(name, 'a') as f:
+                files.append(filename)
                 dataset = f['low_peaks'] #append to low_peaks dataset                     
                 dataset.resize((len_total, 3))
                 dataset[i_prev:i_curr, :] = low_peaks
@@ -214,4 +215,6 @@ def wrangle_additional_data(file_list, name='add_info.hdf5'):
             pass
     print('saved all data to %s' % name)
 
-
+    with open('filenames.txt', 'w') as f:
+        for item in files:
+            f.write("%s\n" % item)

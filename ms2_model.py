@@ -269,7 +269,7 @@ def initialize_autoencoder_low_res():
     hidden_4 = Dense(1000, activation = 'relu')(hidden_3)
     decoded = Dense(input_size, activation='relu')(hidden_4)
 
-    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    adam = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
     name='Adam')
 
     autoencoder = Model(input_scan, decoded)
@@ -279,14 +279,15 @@ def initialize_autoencoder_low_res():
 
 
 def fit_autoencoder(autoencoder, X_data, y_data):   
-    batch_size = 32 
+    batch_size = 256 
     split = 0.5
     test_size = int(batch_size * (1-split))
-    epochs = 25
+    epochs = 5
     idx = X_data.shape[0]
 
     test_loss = []
     train_loss = []
+    test_acc = []
     i = 0
     list_of_indices = []
     
@@ -328,7 +329,7 @@ def fit_autoencoder(autoencoder, X_data, y_data):
             acc_loss.append(test_dict['loss'])
             cos.append(test_dict['cosine_similarity'])
             
-
+        test_acc.append(np.mean(cos))
         test_loss.append(np.mean(acc_loss))
         train_loss.append(np.mean(val_loss))
         print('Cosine Similarity Test ' + str(np.mean(cos)))
@@ -338,7 +339,7 @@ def fit_autoencoder(autoencoder, X_data, y_data):
         if epoch == 0:
             print(autoencoder.summary())
 
-    loss_dict = {'test_loss':test_loss, 'train_loss':train_loss}
+    loss_dict = {'test_loss':test_loss, 'train_loss':train_loss, 'test_acc' : test_acc}
     return(autoencoder, loss_dict)
 
 def pickle_loss_dict(loss_dict, model_name):
