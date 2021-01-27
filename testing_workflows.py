@@ -1,4 +1,6 @@
+import math
 import sys
+from sklearn.decomposition import PCA
 from scipy.spatial.distance import cosine
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -40,6 +42,7 @@ def plot_cos_dist(low_spectra, high_spectra, predicted_spectra):
     print( "Low High Cos Avg", sum(original_cos)/ len(original_cos))
     print("High Pred Cos Avg", sum(new_cos) / len(new_cos))
     print("Low Pred Cos Avg", sum(low_cos) / len(low_cos))
+    
     #ax = sns.jointplot(original_cos, new_cos, kind = 'hex')
     #ax = sns.scatterplot(original_cos, new_cos)
     ax = sns.distplot(original_cos, color='purple')
@@ -54,8 +57,8 @@ def load_np(filename):
 
 def open_hdf5(target):
     hf = h5py.File(target, 'r')
-    low_dset = hf.get('low_peaks').value
-    high_dset = hf.get('high_peaks').value
+    low_dset = hf.get('low_peaks')[:50000]
+    high_dset = hf.get('high_peaks')[:50000]
     return(low_dset, high_dset)
 
 
@@ -96,18 +99,145 @@ def loss_curve(history):
     sns.lineplot(x=x,y=train, color='blue')
     plt.show()
 
-def explore_data(low, high):
+#view pca of data
+def explore_data_pca(low, high, optional=None):
+    import seaborn as sns
+    pca = PCA(n_components = 3)
+
+    low_label = ['low'] * len(low)
+    high_label = ['high'] * len(high)
+    low_label.extend(high_label)
+     
+    X = np.concatenate((low, high), axis=0) 
+    
+    if optional is not None:
+        opt_label = ['third party'] * len(optional)
+        low_label.extend(opt_label)
+        X = np.concatenate((X, optional))
+
+    sklearn_matrix = pca.fit_transform(X)
+    df = pd.DataFrame(sklearn_matrix)
+    df['label'] = low_label
+    
+    #select_features_pca(sklearn_matrix, pca)
+
+    sns.scatterplot(x=0, y=1, hue = 'label', data =df)
+    plt.show()
+
+#look at the distribution of MS/MS peak intensities
+def low_high_inten_dist(low, high):
+    import seaborn as sns
+    low_inten = []
+    high_inten = []
+
+    for l, h in zip(low, high):
+        l = l[l != 0]
+        h = h[h != 0]
+        low_inten.extend(l)
+        high_inten.extend(h)
+
+    
+    for l, h in zip(low_inten, high_inten):
+        if l < 0.05 or h < 0.05:
+            print(l, h)
+    
+    sns.distplot(low_inten, color='green')
+    sns.distplot(high_inten)
+    plt.show()
+
+
+def average_low_high_peaks(low, high):
+    import seaborn as sns
+    low_nonzero = []
+    high_nonzero = []
+
+    for l, h in zip(low, high):
+        low_nonzero.append(np.count_nonzero(l))
+        high_nonzero.append(np.count_nonzero(h))
+
+    sns.distplot(low_nonzero, color='green')
+    sns.distplot(high_nonzero)
+    plt.show()
+
+#show the distribution of fragments masses across all data
+def fragment_mz_dist(low, high):
     import seaborn as sns
     
+    low = np.where(low > 0.0, 1, 0)
+    high = np.where(high > 0.0, 1, 0)
+
+    low_dist = np.sum(low, axis = 0)
+    low_d = []
+   
+    for count, num in enumerate(low_dist):
+        temp_list = [count] * num
+        low_d.extend(temp_list)    
+            
+    high_dist = np.sum(high, axis = 0)
+    high_d = []
+   
+    for count, num in enumerate(high_dist):
+        temp_list = [count] * num
+        high_d.extend(temp_list)    
+    
+    
+    sns.distplot(low_d)
+    sns.distplot(high_d)
+    plt.show()    
+ 
+#calculate loadings for pca and print
+def select_features_pca(X, pca):
+    eigenvalues = pca.explained_variance_
+    all_loadings = []
+    for eigenvalue, eigenvector in zip(eigenvalues, pca.components_):    
+        loadings = np.dot(eigenvector.T, np.sqrt(eigenvalue))
+        all_loadings.append(loadings)
+
+    first_loadings = all_loadings[0]
+    print(min(first_loadings))
+    print(first_loadings.tolist().index(min(first_loadings)))
+
+#sample code to normalize the data properly
+def normalize_data(low, high):
+    fp = True
+    for l, h in zip(low, high):
+        l_max= np.max(l, axis=0)
+        h_max = np.max(h, axis=0)
+
+        if l_max > 0 and h_max > 0:
+            norm_l = np.true_divide(l, l_max)
+            norm_h = np.true_divide(h, h_max)
+
+            norm_l[norm_l < 0.05] = 0
+            norm_h[norm_h < 0.05] = 0
+            
+            if fp is False:
+                l_vec = np.vstack((l_vec, norm_l))
+                h_vec = np.vstack((h_vec, norm_h))
+
+            else:
+                l_vec = norm_l
+                h_vec = norm_h
+                fp = False
+  
+    low_high_inten_dist(l_vec, h_vec)
 
 def main():
     predict_target = './predictions.npy'
-    hdf5_target = './data_3_noise_filter.hdf5'
+    hdf5_target = 'new_data.hdf5'
+    #hdf5_target = './data_3_noise_filter.hdf5'
     model_target = './models/conv1d/conv1d_31.h5'
     history = './models/conv1d/conv1d_31_history.pickle'
 
+
+    low, high = open_hdf5('./data_3_noise_filter.hdf5')
     low_spectra, high_spectra = open_hdf5(hdf5_target)
-    predictions = load_np(predict_target)
+    
+
+    #predictions = load_np(predict_target)
+    #explore_data_pca(low_spectra, high_spectra, low)
+    #normalize_data(low_spectra, high_spectra)
+    low_high_inten_dist(low, high_spectra)
     
     """
     fp = True 
@@ -126,7 +256,7 @@ def main():
             predictions = np.vstack((predictions, row))
     """
     #loss_curve(history)
-    plot_cos_dist(low_spectra, high_spectra, predictions)
+    #plot_cos_dist(low_spectra, high_spectra, predictions)
     #mirror_plot(predictions[39], high_spectra[39])
 
 if __name__ =="__main__":
