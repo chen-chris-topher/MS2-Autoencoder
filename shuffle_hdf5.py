@@ -1,7 +1,7 @@
 import h5py
 import random
 
-f = h5py.File('shuffle_this.hdf5', 'r')
+f = h5py.File('new_data.hdf5', 'r')
 low_dset = f['low_peaks']
 high_dset = f['high_peaks']
 

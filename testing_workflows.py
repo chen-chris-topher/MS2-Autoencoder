@@ -47,7 +47,7 @@ def plot_cos_dist(low_spectra, high_spectra, predicted_spectra):
     #ax = sns.scatterplot(original_cos, new_cos)
     ax = sns.distplot(original_cos, color='purple')
     ax = sns.distplot(new_cos, color='green')
-    ax = sns.distplot(low_cos, color ='blue')
+    #ax = sns.distplot(low_cos, color ='blue')
     #ax.set(xlabel='Cosine Score Low-High', ylabel='Cosine Score High-Predicted')
     plt.show()
 
@@ -57,8 +57,8 @@ def load_np(filename):
 
 def open_hdf5(target):
     hf = h5py.File(target, 'r')
-    low_dset = hf.get('low_peaks')[:50000]
-    high_dset = hf.get('high_peaks')[:50000]
+    low_dset = hf.get('low_peaks')[:2000]
+    high_dset = hf.get('high_peaks')[:2000]
     return(low_dset, high_dset)
 
 
@@ -102,7 +102,7 @@ def loss_curve(history):
 #view pca of data
 def explore_data_pca(low, high, optional=None):
     import seaborn as sns
-    pca = PCA(n_components = 3)
+    pca = PCA(n_components = 5)
 
     low_label = ['low'] * len(low)
     high_label = ['high'] * len(high)
@@ -113,15 +113,17 @@ def explore_data_pca(low, high, optional=None):
     if optional is not None:
         opt_label = ['third party'] * len(optional)
         low_label.extend(opt_label)
+        optional = np.squeeze(optional)
+        print(X.shape)
         X = np.concatenate((X, optional))
-
+    print(X.shape)
     sklearn_matrix = pca.fit_transform(X)
     df = pd.DataFrame(sklearn_matrix)
     df['label'] = low_label
     
     #select_features_pca(sklearn_matrix, pca)
 
-    sns.scatterplot(x=0, y=1, hue = 'label', data =df)
+    sns.scatterplot(x=3, y=4, hue = 'label', data =df)
     plt.show()
 
 #look at the distribution of MS/MS peak intensities
@@ -224,20 +226,22 @@ def normalize_data(low, high):
 
 def main():
     predict_target = './predictions.npy'
-    hdf5_target = 'new_data.hdf5'
-    #hdf5_target = './data_3_noise_filter.hdf5'
-    model_target = './models/conv1d/conv1d_31.h5'
-    history = './models/conv1d/conv1d_31_history.pickle'
+    #hdf5_target = 'shuffled_data.hdf5'
+    hdf5_target = './data_3_noise_filter.hdf5'
+    model_target = './models/conv1d/conv1d_33.h5'
+    history = './models/conv1d/conv1d_33_history.pickle'
 
 
-    low, high = open_hdf5('./data_3_noise_filter.hdf5')
+    low, high = open_hdf5('./shuffled_data.hdf5')
     low_spectra, high_spectra = open_hdf5(hdf5_target)
     
 
-    #predictions = load_np(predict_target)
-    #explore_data_pca(low_spectra, high_spectra, low)
+    predictions = load_np(predict_target)
+    print(predictions.shape)
+
+    explore_data_pca(low_spectra, high_spectra, low)
     #normalize_data(low_spectra, high_spectra)
-    low_high_inten_dist(low, high_spectra)
+    low_high_inten_dist(low_spectra, high_spectra)
     
     """
     fp = True 
@@ -255,9 +259,9 @@ def main():
         else:
             predictions = np.vstack((predictions, row))
     """
-    #loss_curve(history)
-    #plot_cos_dist(low_spectra, high_spectra, predictions)
-    #mirror_plot(predictions[39], high_spectra[39])
+    loss_curve(history)
+    plot_cos_dist(low_spectra, high_spectra, predictions)
+    #mirror_plot(predictions[0], high_spectra[0])
 
 if __name__ =="__main__":
     main()

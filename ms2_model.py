@@ -14,6 +14,7 @@ from tensorflow.keras.regularizers import l1
 from tensorflow.keras.metrics import CosineSimilarity
 from scipy.spatial.distance import cosine
 import numpy as np
+import time
 import pickle
 import json
 import h5py
@@ -279,10 +280,10 @@ def initialize_autoencoder_low_res():
 
 
 def fit_autoencoder(autoencoder, X_data, y_data):   
-    batch_size = 256 
+    batch_size = 1 
     split = 0.5
     test_size = int(batch_size * (1-split))
-    epochs = 5
+    epochs = 20
     idx = X_data.shape[0]
 
     test_loss = []
@@ -303,6 +304,7 @@ def fit_autoencoder(autoencoder, X_data, y_data):
         testing_indices.append((index_set[0] + batch_size, index_set[1]))
 
     for epoch in range(epochs): 
+        t0 = time.time()
         print("\nStart of epoch %d" % (epoch,))
         list_of_indices = []
         
@@ -319,6 +321,7 @@ def fit_autoencoder(autoencoder, X_data, y_data):
             
             if step == 0 and epoch == 0:
                 print("Data shape", X_data[start_train:end_train].shape)
+                print("Data shape y", y_data[start_train:end_train].shape)
             train_dict = autoencoder.train_on_batch(X_data[start_train:end_train], y_data[start_train:end_train], return_dict=True)
             val_loss.append(train_dict['loss'])
       
@@ -338,7 +341,10 @@ def fit_autoencoder(autoencoder, X_data, y_data):
         
         if epoch == 0:
             print(autoencoder.summary())
+        
+        t1 = time.time()
 
+        print("Total Epoch Time: ", t1-t0)
     loss_dict = {'test_loss':test_loss, 'train_loss':train_loss, 'test_acc' : test_acc}
     return(autoencoder, loss_dict)
 

@@ -488,7 +488,7 @@ def main():
     low_dset, high_dset = get_hdf5()
     print(low_dset.shape)
     print(high_dset.shape)
-    predictions_0 = np.load('./gnps_predictions.npy')
+    #predictions_0 = np.load('./gnps_predictions.npy')
     
     
     low_sup, high_sup = sup_filename()
