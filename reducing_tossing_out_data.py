@@ -84,26 +84,28 @@ def concat_hdf5s():
                 print(dset_low.shape)
 
 def main():
-    with h5py.File('./data_10.hdf5', 'r') as hf:
+    with h5py.File('./test_dataset/hong_dataset.hdf5', 'a') as hf:
         df_low = hf['low_peaks']
         df_high = hf['high_peaks']
         
-        with h5py.File('./cos_red_data_10.hdf5', 'w') as nhf:
+        with h5py.File('./hong_reduced.hdf5', 'a') as nhf:
             n_low  = nhf.create_dataset('low_peaks', shape=(1, 2000), maxshape=(None, 2000), compression='gzip')
             n_high = nhf.create_dataset('high_peaks', shape=(1, 2000), maxshape=(None, 2000), compression='gzip')
 
             for low,high in zip(df_low, df_high):
-                """
-                try:
-                    cos = 1 - cosine(low, high)
-                except:
-                    continue
-                if cos >= 0.5:
-                """
-                if np.count_nonzero(low) > 0 and np.count_nonzero(high) > 0:
-                    low = np.add.reduceat(low, np.arange(0, 200000, 100))
-                    high = np.add.reduceat(high, np.arange(0, 200000,100))
-                    
+                low = np.add.reduceat(low, np.arange(0, 200000, 100))
+                high = np.add.reduceat(high, np.arange(0, 200000,100))
+
+                l_max = np.max(low, axis=0)
+                h_max = np.max(high, axis =0)
+
+                if l_max > 0 and h_max > 0:
+                    low = np.true_divide(low, l_max)
+                    high = np.true_divide(high, h_max)
+
+                    high[high < 0.05] = 0
+                    low[low < 0.05] = 0
+
                     size = n_low.shape
                     curr_len = size[0]
                     new_len = curr_len + 1
@@ -117,4 +119,4 @@ def main():
                     print(n_low.shape)
 
 if __name__ == "__main__":
-    get_rid_blank_spectra()
+    main()
