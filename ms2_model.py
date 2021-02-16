@@ -1,11 +1,8 @@
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
-
 import tensorflow as tf
-import kerastuner as kt
 from tensorflow import keras
-
-from tensorflow.keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D, InputLayer
+from tensorflow.keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D, InputLayer, Conv1DTranspose, Dropout, Flatten
 from tensorflow.keras.layers import Activation 
 from tensorflow.keras.models import Model
 from tensorflow.keras import backend as K
@@ -164,56 +161,66 @@ def load_history(history_file):
 #changed aritechture to follow U-net style
 def model_Conv1D():
     input_scan = Input(shape=(2000,1))
-  
-    print(input_scan.shape)
-    #64 * 2000
+ 
+    #2000
     hidden_1 = Conv1D(1, (3,), activation='relu', padding='same')(input_scan)
     hidden_2 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_1)
-    hidden_4 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_2)
-    print("Hidden 4" , hidden_4.shape)
-
-    hidden_4_copy = hidden_4
-    max_pool_1 = MaxPooling1D(2)(hidden_4)
+    hidden_3 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_2)
+   
+    max_pool_1 = MaxPooling1D(2)(hidden_3)
     print("Max Pool 1", max_pool_1.shape)
 
-    hidden_5 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_1)
-    hidden_6 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_5)
-    hidden_7 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_6)
-    print("Hidden 7", hidden_7.shape)
+    #1000
+    hidden_4 = Conv1D(128, (3, ), activation='relu', padding='same')(max_pool_1)
+    hidden_5 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_4)
 
-    hidden_8_copy = hidden_7
-    max_pool_2 = MaxPooling1D(2)(hidden_7)
+    max_pool_2 = MaxPooling1D(2)(hidden_5)
+    print("Max Pool 2", max_pool_2.shape)
 
-    hidden_9 = Conv1D(256, (3,), activation='relu', padding='same')(max_pool_2)
-    hidden_10 = Conv1D(256, (3,), activation='relu', padding='same')(hidden_9)
-    hidden_11 = Conv1D(256, (3, ), activation='relu', padding='same')(hidden_10)
-    print("Hidden 11", hidden_11.shape)
+    #500
+    hidden_6 = Conv1D(256, (3,), activation='relu', padding='same')(max_pool_2)
+    dropout = Dropout(0.1)(hidden_6)
+    dense = Dense(500, activation='relu')(dropout)
+    hidden_7 = Conv1D(256, (3, ), activation='relu', padding='same')(dense)
+
+    #flatten = Flatten()(hidden_7)
+    #droppy = Dropout(0.1)(hidden_7)
+    #dense = Dense(500, activation='relu')(droppy)
+
+ 
+    up_2 = UpSampling1D(2)(hidden_7)
+    conv_up_2 = Conv1DTranspose(128, (2, ), activation='relu', padding='same')(up_2)
+    concat_2 = tf.keras.layers.Concatenate(axis=2)([conv_up_2, hidden_5])
+    print("Concat 1", concat_2.shape)
+
+    #1000
+    hidden_12 = Conv1D(128, (3, ), activation='relu', padding='same')(concat_2)
+    hidden_13 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_12)
+ 
+    up_3 = UpSampling1D(2)(hidden_13)
+    conv_up_3 = Conv1DTranspose(64, (2, ), activation='relu', padding='same')(up_3)
+    concat_3 = tf.keras.layers.Concatenate(axis=2)([conv_up_3, hidden_3])
+    print("Concat 2", concat_3.shape)
+
+    #2000
+    hidden_14 = Conv1D(64, (3, ), activation='relu', padding='same')(concat_3)
+    hidden_15 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_14)
     
-    up_1 = UpSampling1D(2)(hidden_11)
-    conv_up_1 = Conv1D(128, (2, ), activation='relu', padding='same')(up_1)
-    concat_1 = tf.keras.layers.Concatenate(axis=2)([conv_up_1, hidden_8_copy])
-
-    hidden_13 = Conv1D(128, (3, ), activation='relu', padding='same')(concat_1)
-    hidden_14 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_13)
-    hidden_15 = Conv1D(128, (3, ), activation='relu', padding='same')(hidden_14)
-
-    up_2 = UpSampling1D(2)(hidden_15)
-    conv_up_2 = Conv1D(64, (2, ), activation='relu', padding='same')(up_2)
-    concat_2 = tf.keras.layers.Concatenate(axis=2)([conv_up_2, hidden_4_copy])
-
+    decoded= Conv1D(1, (3, ), activation='relu', padding='same')(hidden_15) #change inpuyt back to normal shape
+    #print("Decoded 0", decoded_0.shape)
     
-    hidden_17 = Conv1D(64, (3, ), activation='relu', padding='same')(concat_2)
-    hidden_18= Conv1D(64, (3, ), activation='relu', padding='same')(hidden_17)
-    hidden_19 = Conv1D(64, (3, ), activation='relu', padding='same')(hidden_18)
-  
-    decoded_1 = Conv1D(2, (3, ), activation='relu', padding='same')(hidden_19)
-    decoded = Conv1D(1, (3, ), activation='relu', padding='same')(decoded_1)
+    #flatten = Flatten()(decoded_0)
+    #print("Flatten", flatten.shape)
+
+    #droppy = Dropout(0.1)(flatten)
+    #ecoded = Conv1D(1, (3, ), activation='relu', padding='same')(decoded_0)
+    #decoded = Dense(2000, activation='relu')(droppy)
     print(decoded.shape)
 
     sdg = tf.keras.optimizers.SGD(learning_rate=0.01, momentum=0.0, nesterov=False, name="SGD")
     ada = tf.keras.optimizers.Adadelta(learning_rate=0.0001, rho=0.95, epsilon=1e-07, name="Adadelta")
 
-    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    adam = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
     name='Adam')
     
     cosine_loss = tf.keras.losses.CosineSimilarity(axis=1)
@@ -270,7 +277,7 @@ def initialize_autoencoder_low_res():
     hidden_4 = Dense(1000, activation = 'relu')(hidden_3)
     decoded = Dense(input_size, activation='relu')(hidden_4)
 
-    adam = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    adam = tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
     name='Adam')
 
     autoencoder = Model(input_scan, decoded)
@@ -280,10 +287,10 @@ def initialize_autoencoder_low_res():
 
 
 def fit_autoencoder(autoencoder, X_data, y_data):   
-    batch_size = 1 
+    batch_size = 32 
     split = 0.5
     test_size = int(batch_size * (1-split))
-    epochs = 20
+    epochs = 10
     idx = X_data.shape[0]
 
     test_loss = []

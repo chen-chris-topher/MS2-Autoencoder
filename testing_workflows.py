@@ -81,11 +81,12 @@ def plot_cos_dist(low_spectra, high_spectra, predicted_spectra):
     lots_high = 0
     
     for low, high, pre in zip(low_spectra, high_spectra, predicted_spectra):
+        
         if str(1-cosine(low,high)) != 'nan':
             pass
         else:
             continue
-
+        
         original_cos.append(1-cosine(low,high))
         new_cos.append(1-cosine(high, pre))
         low_cos.append(1-cosine(low,pre))    
@@ -135,15 +136,22 @@ def plot_cos_dist(low_spectra, high_spectra, predicted_spectra):
     ax.set_ylabel('High-Predicted Cos', fontweight ='bold') 
     ax.set_zlabel('Low-Predicted Cos', fontweight ='bold')
     """
-
+    x = np.arange(0,1, 0.1)
+    y = x + 0
     
     #ax = sns.jointplot(original_cos, new_cos, kind = 'hex')
     #ax = sns.scatterplot(new_cos, num_peaks_predicted)
-    #ax = sns.scatterplot(original_cos, new_cos)
+    g = sns.jointplot(original_cos, new_cos, kind='reg', scatter_kws={"color": "black"}, line_kws={"color": "blue"}) 
+    g.ax_joint.plot([0,1], [0,1], color='red', lw=3)
+
+    g.ax_marg_x.set_xlim(0,1)
+    g.ax_marg_y.set_ylim(0, 1)
+    
     #ax = sns.distplot(original_cos, color='purple')
-    ax = sns.distplot(new_cos, color='green')
+    #x = sns.distplot(new_cos, color='green')
     #ax = sns.distplot(low_cos, color ='blue')
-    ax.set(xlabel='Original Cos', ylabel='New Cosine')
+    g.ax_joint.set(xlabel='High-Low Cos', ylabel='High-Predicted Cosine')
+   
     plt.show()
 
 def load_np(filename):
@@ -349,9 +357,13 @@ def main():
     #hdf5_target = 'shuffled_data.hdf5'
     #hdf5_target = './hong_reduced.hdf5'
     hdf5_target = './data_3_noise_filter.hdf5'
-    model_target = './models/conv1d/conv1d_34.h5'
-    history = './models/conv1d/conv1d_34_history.pickle'
+    model_target = './models/conv1d/conv1d_36.h5'
+    history = './models/conv1d/conv1d_36_history.pickle'
 
+    #from tensorflow.keras.models import load_model
+    #model = load_model(model_target)
+    #print(model.summary())
+    #sys.exit(0)
 
     #low, high = open_hdf5('./shuffled_data.hdf5')
     low_spectra, high_spectra = open_hdf5(hdf5_target)
@@ -364,33 +376,36 @@ def main():
     
     
     fp = True 
-
-    for row in predictions_0:
-        
+    
+    for row in predictions_0: 
         row = row.flatten()     
-         
-        sum_val = np.sum(row)
+        
+        sum_val = np.max(row)
 
-        row = row / sum_val
+        row = np.true_divide(row, sum_val)
         row[row < 0.05] = 0.0
 
-        if str(row[0]) == 'nan':
-            continue
+        #if str(row[0]) == 'nan':
+        #    continue
         
         if fp == True:
             fp = False
             predictions = row
         else:
             predictions = np.vstack((predictions, row))
-    sys.exit(0)
+    
+
+    print(predictions.shape)
+    print(low_spectra.shape)
+    #sys.exit(0)
     #print(predictions)
-    low_high_inten_dist(low_spectra, predictions)
+    #low_high_inten_dist(low_spectra, predictions)
 
     #print(low_spectra)
     #print(high_spectra)
-    explore_data_pca(low_spectra, high_spectra, predictions)
-    average_peak_intensity(low_spectra, high_spectra, predictions)
-    #loss_curve(history)
+    #explore_data_pca(low_spectra, high_spectra, predictions)
+    #average_peak_intensity(low_spectra, high_spectra, predictions)
+    loss_curve(history)
     plot_cos_dist(low_spectra, high_spectra, predictions)
     #mirror_plot(predictions[0], high_spectra[0])
 

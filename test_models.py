@@ -17,7 +17,7 @@ data = os.path.join(dirname, args.data)
 model_path = os.path.join(dirname, args.model)
 
 #my line
-model_path = "./models/conv1d/conv1d_32.h5"
+model_path = "./models/conv1d/conv1d_36.h5"
 
 with tf.device('/cpu:0'):
     model = load_model(model_path)

@@ -3,7 +3,7 @@ import numpy as np
 import h5py
 from os.path import join
 import argparse
-import kerastuner as kt
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('data', help='training data')
@@ -40,8 +40,8 @@ print(dataset_low.shape)
 if model=='conv1d':
     model = ms2_model.model_Conv1D()
     model, loss_dict = ms2_model.fit_autoencoder(model, dataset_low, dataset_high)
-    ms2_model.save_model(model, join(outdir, 'conv1d/', 'conv1d_32.h5'))
-    ms2_model.save_history(loss_dict, join(outdir, 'conv1d/', 'conv1d_32_history.pickle'))
+    ms2_model.save_model(model, join(outdir, 'conv1d/', 'conv1d_36.h5'))
+    ms2_model.save_history(loss_dict, join(outdir, 'conv1d/', 'conv1d_36_history.pickle'))
 
 elif model=='deepautoencoder':
     autoencoder = ms2_model.model_deep_autoencoder()
