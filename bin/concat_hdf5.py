@@ -180,7 +180,7 @@ def wrangle_additional_data(file_list, name='add_info.hdf5'):
     i_prev = 0
     len_total = 0
     count = 0
-
+    files = []
     for filename in file_list:
         try:
             print('#%r extracting and appending %s to hdf5' %(count, filename))
@@ -198,6 +198,7 @@ def wrangle_additional_data(file_list, name='add_info.hdf5'):
             high = high_peaks.reshape(len(high_peaks), np.prod(high_peaks.shape[1:]))
             print(high_peaks.shape)        
             with h5py.File(name, 'a') as f:
+                files.extend([filename] * low_peaks.shape[0])
                 dataset = f['low_peaks'] #append to low_peaks dataset                     
                 dataset.resize((len_total, 3))
                 dataset[i_prev:i_curr, :] = low_peaks
@@ -213,5 +214,3 @@ def wrangle_additional_data(file_list, name='add_info.hdf5'):
             print("Failed to reshape data into hdf5")
             pass
     print('saved all data to %s' % name)
-
-

@@ -12,6 +12,8 @@ parser.add_argument('--binned_dict_file', action='store')
 parser.add_argument('--pairs_list_file', action='store')
 parser.add_argument('--ordered_list_file', action='store')
 
+print("In Main Function")
+
 args = parser.parse_args()
 file = args.data_file
 directory = args.directory
@@ -75,13 +77,23 @@ else: #complete run through
     current_time = time.time()
     
     ordered_list = em.arrange_min_max(pairs_list)
+    #m.output_file2(ordered_list, directory, ordered = True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
    
-    ready_array, ready_mass = em.convert_to_ready(ordered_list)
-    print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
-    current_time = time.time()
-    em.output_list(ready_array, directory)
+    #ready_array, ready_mass = em.convert_to_ready(ordered_list)
+    #print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
+    #new_list = []
+    #for thing in ready_array:
+    #   for item in thing:
+    #       print(item)
+    #       new_list.append(item.tolist())
+    #save_dict = {'filename': file, 'ready_array': new_list}
+    #rint(save_dict)
+    #em.output_file2(save_dict, directory)
+    #current_time = time.time()
+    
+    #em.output_list(ready_array, directory)
     
     print("Before New Code")
     #ready_array = em.convert_to_ready(ordered_list)
@@ -90,6 +102,6 @@ else: #complete run through
     
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
-    em.output_list(ready_array, directory, two=True, ready_mass=None)
+    em.output_list(ready_array, directory, two=True)
 
 print('operations complete')

@@ -1,11 +1,14 @@
 from pyteomics import mzxml, auxiliary
 import numpy as np
 import scipy
-
+import os
 def read_data(file):
     """
     read mzxml file using pyteomics.mzxml
     """
+    print(os.listdir('./'))
+    print("Here")
+    print(str(file))
     data = mzxml.MzXML(file)
     print(str(file), 'has been accepted')
 
@@ -72,6 +75,7 @@ def list_retentionTime_MS2(data, id_list_ms2):
     return rt_list_ms2
 
 def search_MS2_matches(data, id_list_ms2, rt_tol=0.5, mz_tol=0.01):
+    import sys
     """
     search for same molecules in MS2 scans
     same molecules are based on mass ('precursorMz') with a tolerance (mass_tolerance)
@@ -122,11 +126,14 @@ def search_MS2_matches(data, id_list_ms2, rt_tol=0.5, mz_tol=0.01):
                             print('Found a match: %s:%r' %(k, v))
                 
                 match_index_dict[id_save] = v_list
-
+            
+            print(sys.getsizeof(match_index_dict))
+            print('%s of %s' %(k, len(id_list_ms2))) 
             print('Finished search for dict[%s]' %k)
             redun_check = False #reset redundancy check boolean
         else:
             redun_check = False #reset redundancy check boolean 
+
     return match_index_dict
 
 def get_match_scans(data, match_index_dict):
@@ -424,8 +431,9 @@ def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):
             output.write(json)
         print('saved dict to "output.json"')
 
-def output_list(in_list, directory, two=None, ready_mass = None):
+def output_list(in_list, directory, two=None, ready_mass = None, dict=False):
     import numpy as np
+    import json
     if two == True:
         filename = directory + '/ready_array2.npz'
         np.savez_compressed(filename, in_list)
@@ -434,6 +442,11 @@ def output_list(in_list, directory, two=None, ready_mass = None):
         filename = directory + '/ready_mass.npz'
         np.savez_compressed(filename, in_list)
         print('saved ready_array to %s' %filename)
+    elif dict == True: 
+        json = json.dumps(in_list)
+        filename = directory + '/ready_array_dict.npz'
+        with open(filename, 'w') as output:
+            output.write(json)
     else:
         filename = directory + '/ready_array.npz'
         np.savez_compressed(filename, in_list)

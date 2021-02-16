@@ -1,14 +1,14 @@
 #!/usr/bin/env nextflow
-params.inputSpectra = "./spectra_data_2/*mzXML"
-params.outdir = "$baseDir/output_nf_2"
+params.inputSpectra = "./spectra_data_3/*mzML"
+params.outdir = "$baseDir/output_nf_3"
 TOOL_FOLDER = "$baseDir/bin"
 
 process extractPairs { 
-    errorStrategy 'ignore'
-    //errorStrategy 'terminate'
+    //errorStrategy 'ignore'
+    errorStrategy 'terminate'
     echo true
     //validExitStatus 1
-	publishDir "$params.outdir", mode: 'copy'
+    publishDir "$params.outdir", mode: 'copy'
 	 
 
     input:
@@ -21,24 +21,19 @@ process extractPairs {
     println(extension)
     if( extension == 'mzML' )
         """
-        export LC_ALL=C
+        	export LC_ALL=C
 
-        $TOOL_FOLDER/msconvert "$inputFile" --outfile "${file_id}.mzXML" --mzXML
-
-        mkdir "${file_id}_outdir"
-        /Users/cmaceves/miniconda3/envs/autoencoder/bin/python "$TOOL_FOLDER"/main.py "${file_id}.mzXML" "${file_id}_outdir"
-        rm "${file_id}.mzXML"
-		"""
+        	"$TOOL_FOLDER"/msconvert "$inputFile" --outfile "${file_id}.mzXML" --mzXML
+        	mkdir "${file_id}_outdir"
+        	echo "${file_id}"
+		/Users/cmaceves/miniconda3/envs/autoencoder/bin/python "$TOOL_FOLDER"/main.py "${file_id}.mzXML" "${file_id}_outdir"
+		
+	"""
     else if ( extension == 'mzXML' )
         """
-		if( [ -d "${file_id}_outdir" ] )
-		then
-			echo "${file_id} directory made"
-		else
-        	mkdir "${file_id}_outdir"
+	       	mkdir "${file_id}_outdir"
         	/Users/cmaceves/miniconda3/envs/autoencoder/bin/python "$TOOL_FOLDER"/main.py "$inputFile" "${file_id}_outdir"
-        	rm "${file_id}.mzXML"
-		fi
+  	
         """
     else
         error "Invalid Extension"	

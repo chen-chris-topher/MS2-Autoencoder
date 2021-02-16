@@ -1,7 +1,7 @@
 import numpy as np
 import json
 import os
-dir = './output_nf_2'
+dir = './hong_outdir'
 file = 'ordered_list2.json'
 all_folders =os.listdir(dir)
 all_files = [os.path.join(dir,item, file) for item in all_folders]

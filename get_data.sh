@@ -155,5 +155,5 @@
 #wget ftp://massive.ucsd.edu/MSV000083773/peak/* -P spectra_data_3
 
 #TEST DATASET
-wget ftp://massive.ucsd.edu/MSV000081952/peak/mzxml_files/Plate1/Samples/* -P test_dataset
+wget ftp://massive.ucsd.edu/MSV000081952/peak/mzxml_files/Plate1/Samples/* -P hong_dataset
 

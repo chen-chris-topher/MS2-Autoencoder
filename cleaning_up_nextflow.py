@@ -3,8 +3,8 @@ import sys
 
 
 def main():
-    spectra_location = './spectra_data'
-    output_location = './output_nf_2'
+    spectra_location = './spectra_data_3'
+    output_location = './output_nf_3'
 
     all_spectra_downloaded = os.listdir(spectra_location)
     possible_output = os.listdir(output_location)
