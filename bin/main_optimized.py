@@ -59,7 +59,7 @@ else:
     match_index_dict, sorted_dict = em.find_MS2(data, directory) #made some adjustments, works as intended 
     print('--- %s seconds runtime ---' %(str(time.time() - start_time)))
     current_time = time.time() 
-    
+     
     processed_dict = em.get_match_scans(sorted_dict, match_index_dict) 
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
@@ -73,6 +73,7 @@ else:
     current_time = time.time()
     
     ordered_list = em.arrange_min_max(pairs_list)
+    print(ordered_list)
     #m.output_file2(ordered_list, directory, ordered = True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
