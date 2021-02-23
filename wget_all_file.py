@@ -1,7 +1,12 @@
 import os
 import sys
 import numpy as np
-destination_file = './spectra_data_4'
+import pandas as pd
+destination_file = './spectra_data_1'
+
+filename = './all_filenames.csv'
+df = pd.read_csv(filename)
+print(df)
 
 def clean_file_names():
     all_files = os.listdir(destination_file)
@@ -15,7 +20,6 @@ with open('./compress_files.txt', 'r') as f:
         if i >= 35000 and i < 55000:
     	    files.append(line.strip()) 
 
-exclusion_files = ['MSV000086287', 'MSV000086483', 'MSV000086208', 'MSV000086236']
 files = np.unique(files).tolist()
 print(len(files))
 print("About to pull files")
