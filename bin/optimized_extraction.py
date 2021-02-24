@@ -54,7 +54,7 @@ def find_MS2(data, directory):
                 mz = float(data[i].get('precursorMz')[0].get('precursorMz'))
                 rt = float(data[i].get('retentionTime'))
                 id = int(data[i].get('id'))      
-                
+ 
                 mz_array = data[i].get('m/z array').tolist()
                 inten_array = data[i].get('intensity array').tolist()
 
@@ -65,18 +65,20 @@ def find_MS2(data, directory):
         mz1 = item['mz']
         rt1 = item['rt']
         prec1 = item['inten']
+        id_save = item['id']
+
         two_list = []
         redun_check = False
 
-        for value in match_index_dict.values(): 
-            for index in range(0, len(value)):
+        for value in match_index_dict.values():  
+            for index in range(0,len(value)):
                 if key == value[index]:
                     redun_check = True              
-
+                
         if redun_check != True:
             for key2, item2 in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True):
-                if key == key2:
-                    continue
+                #if key == key2:
+                #    continue
 
                 mz2 = item2['mz']
                 rt2 = item2['rt']
@@ -89,16 +91,20 @@ def find_MS2(data, directory):
                 #if we get below the target value by the mz tolerance, we're not getting higher
                 if mz2 <= mz1 + mass_tolerance and mz2 >= mz1 - mass_tolerance:
                     if rt2 <= rt1 + rt_tolerance and rt2 >= rt1 - rt_tolerance:  
+                        #if the new one is of larger precursor intensity
                         if prec2 >= prec1:
                             two_list.append(key2)
-                            print('Found a match: %s:%r' %(key, key2))
+                            #print('Found a match: %s:%r' %(key, key2))
             
             if len(two_list) != 0:    
                 match_index_dict[key] = two_list
             redun_check = False
-            print('%s of %s' %(key, len(return_sort_dict))) 
-            print('Finished search for dict[%s]' %key)
-    
+            #print('%s of %s' %(key, len(return_sort_dict))) 
+            #print('Finished search for dict[%s]' %key)
+        else:
+            redun_check = False 
+
+
     return (match_index_dict, return_sort_dict)
 
 def get_match_scans(sorted_dict, match_index_dict):
@@ -109,8 +115,9 @@ def get_match_scans(sorted_dict, match_index_dict):
     processed_dict = {}
     
     for key in match_index_dict.keys(): #key loops through scans   
-        processed_dict[int(key)] = []
-        
+        save_key = sorted_dict[key]['id']
+        processed_dict[int(save_key)] = []
+        save_key = sorted_dict[key]['id'] 
         for index, i in zip(match_index_dict[key], range(0, len(match_index_dict[key]))):
             scan = int(sorted_dict[index]['id'])
             rt = sorted_dict[index]['rt']
@@ -119,8 +126,8 @@ def get_match_scans(sorted_dict, match_index_dict):
             mz_array = sorted_dict[index]['mz array']
             intensity_array = sorted_dict[index]['inten array']
             
-            processed_dict[int(key)].append({scan:{}})
-            processed_dict[int(key)][i][scan] = {'retentionTime':rt, #retentionTime
+            processed_dict[int(save_key)].append({scan:{}})
+            processed_dict[int(save_key)][i][scan] = {'retentionTime':rt, #retentionTime
                                                 'precursorMz':mz, #precursorMz
                                                 'precursorIntensity':intensity, #precursorIntensity
                                                 'mz array':mz_array, #mz array 
@@ -144,7 +151,7 @@ def bin_array(processed_dict):
             for scan in processed_dict[key][i]:
                 mz_array = processed_dict[key][i][scan].get('mz array')
                 intensity_array = processed_dict[key][i][scan].get('intensity array')
-                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=200000, range=(0, 2000)) #bins are integers range(0,2000)
+                binned_intensity, binned_mz, _ = binned_statistic(mz_array, intensity_array, statistic='sum', bins=2000, range=(0, 2000)) #bins are integers range(0,2000)
                 binned_mz = binned_mz[:-1]
 
                 rt = processed_dict[key][i][scan].get('retentionTime')
