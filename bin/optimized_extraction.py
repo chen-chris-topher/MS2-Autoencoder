@@ -7,9 +7,7 @@ def read_data(file):
     """
     read mzxml file using pyteomics.mzxml
     """
-    print(os.listdir('./'))
-    print("Here")
-    print(str(file))
+
     data = mzxml.MzXML(file)
     print(str(file), 'has been accepted')
 
@@ -60,52 +58,53 @@ def find_MS2(data, directory):
 
                 return_sort_dict[i] = {'mz': mz, 'rt': rt, 'inten' : inten, 'id':id, 'mz array': mz_array, 'inten array' : inten_array}
                 
-    #good up to this point 
+    #find all potential matches, regarless of precursor or overlap 
     for key, item in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True):
         mz1 = item['mz']
         rt1 = item['rt']
-        prec1 = item['inten']
         id_save = item['id']
+        prec1 = item['inten']
 
         two_list = []
         redun_check = False
-
-        for value in match_index_dict.values():  
-            for index in range(0,len(value)):
-                if key == value[index]:
-                    redun_check = True              
-                
-        if redun_check != True:
+       
+        if redun_check is False:
             for key2, item2 in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True):
                 #if key == key2:
                 #    continue
+                
 
                 mz2 = item2['mz']
                 rt2 = item2['rt']
                 prec2 = item2['inten']
               
                 if mz2 < mz1 - mass_tolerance:
-                    #print(mz1, mz2)
                     break
                     
                 #if we get below the target value by the mz tolerance, we're not getting higher
                 if mz2 <= mz1 + mass_tolerance and mz2 >= mz1 - mass_tolerance:
                     if rt2 <= rt1 + rt_tolerance and rt2 >= rt1 - rt_tolerance:  
-                        #if the new one is of larger precursor intensity
-                        if prec2 >= prec1:
+                        if prec2 >= prec1:           
                             two_list.append(key2)
-                            #print('Found a match: %s:%r' %(key, key2))
-            
+                        
             if len(two_list) != 0:    
                 match_index_dict[key] = two_list
             redun_check = False
+            
+            if key in match_index_dict.keys():
+                print(key, match_index_dict[key])
+            
             #print('%s of %s' %(key, len(return_sort_dict))) 
             #print('Finished search for dict[%s]' %key)
         else:
-            redun_check = False 
-
-
+            redun_check = False
     return (match_index_dict, return_sort_dict)
+
+
+def resolve_conflicts_pair(match_index_dict, return_sort_dict):
+    
+    for key, value in match_index_dict:
+        pass 
 
 def get_match_scans(sorted_dict, match_index_dict):
     """
@@ -118,6 +117,7 @@ def get_match_scans(sorted_dict, match_index_dict):
         save_key = sorted_dict[key]['id']
         processed_dict[int(save_key)] = []
         save_key = sorted_dict[key]['id'] 
+        
         for index, i in zip(match_index_dict[key], range(0, len(match_index_dict[key]))):
             scan = int(sorted_dict[index]['id'])
             rt = sorted_dict[index]['rt']
@@ -127,6 +127,7 @@ def get_match_scans(sorted_dict, match_index_dict):
             intensity_array = sorted_dict[index]['inten array']
             
             processed_dict[int(save_key)].append({scan:{}})
+
             processed_dict[int(save_key)][i][scan] = {'retentionTime':rt, #retentionTime
                                                 'precursorMz':mz, #precursorMz
                                                 'precursorIntensity':intensity, #precursorIntensity
