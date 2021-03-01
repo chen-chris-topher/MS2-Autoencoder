@@ -1,3 +1,4 @@
+from scipy.spatial.distance import cosine
 from pyteomics import mzxml, auxiliary
 import numpy as np
 import scipy
@@ -12,23 +13,6 @@ def read_data(file):
     print(str(file), 'has been accepted')
 
     return data
-
-def count_MS2(data):
-    """
-    count total number scans and MS2 scans in the data
-    """
-    tot_ms2 = 0
-    tot_ms1 = 0
-
-    for i in range(0, len(data)):
-        for k,v in data[i].items():
-            if k == 'msLevel':
-                if v == 2:
-                    tot_ms2 += 1
-                else:
-                    tot_ms1 += 1
-    print('Total %s scans in data' %(str(len(data))))
-    print('Count %s MS2 scans in data' %(str(tot_ms2)))
 
 def find_MS2(data, directory):
     """
@@ -73,7 +57,6 @@ def find_MS2(data, directory):
                 #if key == key2:
                 #    continue
                 
-
                 mz2 = item2['mz']
                 rt2 = item2['rt']
                 prec2 = item2['inten']
@@ -84,15 +67,15 @@ def find_MS2(data, directory):
                 #if we get below the target value by the mz tolerance, we're not getting higher
                 if mz2 <= mz1 + mass_tolerance and mz2 >= mz1 - mass_tolerance:
                     if rt2 <= rt1 + rt_tolerance and rt2 >= rt1 - rt_tolerance:  
-                        if prec2 >= prec1:           
+                        if float(prec2) >= (float(prec1) * 10):           
                             two_list.append(key2)
                         
             if len(two_list) != 0:    
                 match_index_dict[key] = two_list
             redun_check = False
             
-            if key in match_index_dict.keys():
-                print(key, match_index_dict[key])
+            #if key in match_index_dict.keys():
+                #print(key, match_index_dict[key])
             
             #print('%s of %s' %(key, len(return_sort_dict))) 
             #print('Finished search for dict[%s]' %key)
@@ -115,8 +98,7 @@ def get_match_scans(sorted_dict, match_index_dict):
     
     for key in match_index_dict.keys(): #key loops through scans   
         save_key = sorted_dict[key]['id']
-        processed_dict[int(save_key)] = []
-        save_key = sorted_dict[key]['id'] 
+        processed_dict[int(save_key)] = [] 
         
         for index, i in zip(match_index_dict[key], range(0, len(match_index_dict[key]))):
             scan = int(sorted_dict[index]['id'])
@@ -211,8 +193,8 @@ def create_pairs(binned_dict):
         for i in range(0, len(binned_dict[key])):
             for j in range(i+1, len(binned_dict[key])): 
                 for scan, scan2 in zip(binned_dict[key][i].keys(), binned_dict[key][j].keys()):
-                    if np.count_nonzero(scan) != 0:
-                        if np.count_nonzero(scan2):
+                    if np.count_nonzero(scan) != 0 and np.count_nonzero(scan2) != 0:
+                        if (1 - cosine(scan, scan2)) >= 0.50: 
                             pairs.append([binned_dict[key][i][scan], binned_dict[key][j][scan2]])
                             
         pairs_list.append(pairs)
