@@ -1,6 +1,6 @@
 #!/usr/bin/env nextflow
-params.inputSpectra = "./spectra_data_3/*mzML"
-params.outdir = "$baseDir/output_nf_3"
+params.inputSpectra = "./spectra_data_1/*mzML"
+params.outdir = "$baseDir/output_nf_1"
 TOOL_FOLDER = "$baseDir/bin"
 
 process extractPairs { 
@@ -26,13 +26,13 @@ process extractPairs {
         	"$TOOL_FOLDER"/msconvert "$inputFile" --outfile "${file_id}.mzXML" --mzXML
         	mkdir "${file_id}_outdir"
         	echo "${file_id}"
-		/Users/cmaceves/miniconda3/envs/autoencoder/bin/python "$TOOL_FOLDER"/main.py "${file_id}.mzXML" "${file_id}_outdir"
+		/Users/cmaceves/miniconda3/envs/autoencoder/bin/python "$TOOL_FOLDER"/main_optimized.py "${file_id}.mzXML" "${file_id}_outdir"
 		
 	"""
     else if ( extension == 'mzXML' )
         """
 	       	mkdir "${file_id}_outdir"
-        	/Users/cmaceves/miniconda3/envs/autoencoder/bin/python "$TOOL_FOLDER"/main.py "$inputFile" "${file_id}_outdir"
+        	/Users/cmaceves/miniconda3/envs/autoencoder/bin/python "$TOOL_FOLDER"/main_optimized.py "$inputFile" "${file_id}_outdir"
   	
         """
     else
