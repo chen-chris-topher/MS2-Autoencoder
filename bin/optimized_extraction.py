@@ -53,10 +53,7 @@ def find_MS2(data, directory):
         redun_check = False
        
         if redun_check is False:
-            for key2, item2 in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True):
-                #if key == key2:
-                #    continue
-                
+            for key2, item2 in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True): 
                 mz2 = item2['mz']
                 rt2 = item2['rt']
                 prec2 = item2['inten']
@@ -187,14 +184,29 @@ def create_pairs(binned_dict):
     number of pairs per same molecule is n(n+1)/2 where n is number of scans
     returns list with paired scans
     """
+
     pairs_list = []
     for key in binned_dict.keys(): #looping through all binned MS2 scans
         pairs = []
         for i in range(0, len(binned_dict[key])):
             for j in range(i+1, len(binned_dict[key])): 
                 for scan, scan2 in zip(binned_dict[key][i].keys(), binned_dict[key][j].keys()):
-                    if np.count_nonzero(scan) != 0 and np.count_nonzero(scan2) != 0:
-                        if (1 - cosine(scan, scan2)) >= 0.50: 
+                    thing1 = binned_dict[key][i][scan]['intensity array']
+                    thing2 = binned_dict[key][j][scan2]['intensity array']                    
+                    if (np.count_nonzero(thing1) != 0) and (np.count_nonzero(thing2) != 0):
+                        low_max = np.max(thing1)
+                        high_max = np.max(thing2)
+                        
+                        low = np.true_divide(thing1, low_max)
+                        high = np.true_divide(thing2, high_max)
+
+                        low[low < 0.05] = 0.0
+                        high[high < 0.05] = 0.0
+                      
+                        cos = 1 - cosine(low, high)
+                        if cos >= 0.5 and cos < 1.0:
+                            binned_dict[key][i][scan]['intensity array'] = low
+                            binned_dict[key][j][scan2]['intensity array'] = high
                             pairs.append([binned_dict[key][i][scan], binned_dict[key][j][scan2]])
                             
         pairs_list.append(pairs)
