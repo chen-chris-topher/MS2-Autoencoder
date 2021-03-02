@@ -77,8 +77,8 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
     """
 
     with h5py.File(name, 'w') as f: #create empty hdf5 file with two datasets
-        dataset = f.create_dataset('low_peaks', shape=(1, 200000), maxshape=(None, 200000),compression='gzip')
-        dataset = f.create_dataset('high_peaks', shape=(1, 200000), maxshape=(None, 200000),compression='gzip')
+        dataset = f.create_dataset('low_peaks', shape=(1, 2000), maxshape=(None, 2000),compression='gzip')
+        dataset = f.create_dataset('high_peaks', shape=(1, 2000), maxshape=(None, 2000),compression='gzip')
         f.close()
 
     i_prev = 0
@@ -88,25 +88,29 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
         try:
             print('#%r extracting and appending %s to hdf5' %(count, filename))
             data = extract_npz(filename)   
-            size = data.shape
+            size = data.shape 
             i_curr = size[0] + i_prev
-            len_total += i_curr
+            len_total = i_curr
             count += 1
-            
+            print(size)
+            print(i_curr)
+            print(i_prev)
+            print(len_total)
             low_peaks, high_peaks = split_reshape(data, norm) 
             
             with h5py.File(name, 'a') as f:
                 dataset = f['low_peaks'] #append to low_peaks dataset
                 
-                dataset.resize((len_total, 200000))
+                dataset.resize((len_total, 2000))
                 dataset[i_prev:i_curr, :] = low_peaks
 
                 dataset = f['high_peaks'] #append to high_peaks dataset
-                dataset.resize((len_total, 200000))
+                dataset.resize((len_total, 2000))
                 dataset[i_prev:i_curr, :] = high_peaks
 
                 f.close()
             i_prev = i_curr
+            
             print('length at %s' %len_total)
         except:
             print("Failed to reshape data into hdf5")
