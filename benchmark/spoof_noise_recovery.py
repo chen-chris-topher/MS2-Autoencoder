@@ -19,10 +19,10 @@ from scipy.spatial.distance import cosine
 random.seed(10)
 
 #model being used for test
-model_name = '../models/conv1d/conv1d_35.h5'
+model_name = '../models/conv1d/conv1d_36.h5'
 
 #datasets being tested against
-DATASET_1 = '../test_dataset/hong_dataset.hdf5'
+DATASET_1 = '../nominal_1000_3000.hdf5'
 DATASET_2 = ''
 DATASET_3 = ''
 
@@ -62,15 +62,30 @@ def mirror_plots(spectra_1, spectra_2):
     plt.show()
 
 #calculate the cosine score of reocovered data versus original
-def cosine_score(peaks_1, peaks_2):
+#pre, actual, noisy
+def cosine_score(peaks_1, peaks_2, peaks_3):
     import seaborn as sns
     
     all_cos_scores = []
-    for count, (peak1, peak2) in enumerate(zip(peaks_1, peaks_2)):
-        all_cos_scores.append(1 - cosine(peak1, peak2))
+    side_cos = []
+
+    for count, (peak1, peak2, peak3) in enumerate(zip(peaks_1, peaks_2, peaks_3)):
+        low_high_cos = 1 - cosine(peak3, peak2)
+        pre_high_cos = 1 - cosine(peak1, peak2)
+        
+
+
+        all_cos_scores.append(pre_high_cos)
+        side_cos.append(low_high_cos)
+
+        if low_high_cos > pre_high_cos:
+            print(count)
+        """
         if (1-cosine(peak1,peak2)) < 0.5:
             print(count)
-    x = sns.distplot(all_cos_scores)
+        """
+    # = sns.distplot(all_cos_scores, color = 'orange')
+    x = sns.distplot(side_cos, color = 'purple')
     plt.show()
 
 #loads model and predicts on the test dataset
@@ -157,7 +172,7 @@ def main():
     high_peaks = load_data(DATASET_1) 
   
     #reduce peaks and normalize
-    high_peaks = bin_reduce_normalize(high_peaks, reduce =True)
+    high_peaks = bin_reduce_normalize(high_peaks)
 
     #distribution(high_peaks)
     
@@ -174,21 +189,24 @@ def main():
     #np.save('./predictions_spoof.npy', predicted_peaks)
  
     #load already saved data for analysis
-    #predicted_peaks =  np.load('./predictions_spoof.npy')
-    #predicted_peaks = bin_reduce_normalize(predicted_peaks) 
-    #cosine_score(predicted_peaks, high_peaks)
-
+    predicted_peaks =  np.load('./predictions_spoof.npy')
+    predicted_peaks = bin_reduce_normalize(predicted_peaks) 
+    
+    
     #load noisy data
-    #noisy_peaks = np.load('./noisy_peak_spoof.npy')
-   
+    noisy_peaks = np.load('./noisy_peak_spoof.npy')
+    #osine_score(predicted_peaks, high_peaks, noisy_peaks)
+
+
     #print(noisy_peaks.shape)
     #print(predicted_peaks.shape)
     #print(high_peaks.shape)
 
-    #cosine_score(high_peaks, predicted_peaks)
-    #print(1-cosine(predicted_peaks[109], high_peaks[109]))
-  
-    #mirror_plots(predicted_peaks[5310], high_peaks[5310])
+    cosine_score(high_peaks, predicted_peaks)
+    
+    #print(1-cosine(noisy_peaks[0], high_peaks[0]))
+    #print(1-cosine(predicted_peaks[0], high_peaks[0]))
+    #mirror_plots(predicted_peaks[0], high_peaks[0])
 
 
 if __name__ == "__main__":
