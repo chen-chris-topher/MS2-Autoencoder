@@ -1,11 +1,11 @@
 #!/usr/bin/env nextflow
-params.inputSpectra = "./spectra_data_1/*mzML"
+params.inputSpectra = "./spectra_data_1/*mzXML"
 params.outdir = "$baseDir/output_nf_1"
 TOOL_FOLDER = "$baseDir/bin"
 
 process extractPairs { 
-    //errorStrategy 'ignore'
-    errorStrategy 'terminate'
+    errorStrategy 'ignore'
+    //errorStrategy 'terminate'
     echo true
     //validExitStatus 1
     publishDir "$params.outdir", mode: 'copy'
