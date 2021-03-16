@@ -89,13 +89,14 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
             print('#%r extracting and appending %s to hdf5' %(count, filename))
             data = extract_npz(filename)   
             size = data.shape 
+            print(size)
             i_curr = size[0] + i_prev
             len_total = i_curr
             count += 1
-            print(size)
-            print(i_curr)
-            print(i_prev)
-            print(len_total)
+            #print(size)
+            #print(i_curr)
+            #print(i_prev)
+            #print(len_total)
             low_peaks, high_peaks = split_reshape(data, norm) 
             
             with h5py.File(name, 'a') as f:
