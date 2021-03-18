@@ -73,7 +73,6 @@ def find_MS2(data, directory):
                 #if key == key2:
                 #    continue
                 
-
                 mz2 = item2['mz']
                 rt2 = item2['rt']
                 prec2 = item2['inten']
