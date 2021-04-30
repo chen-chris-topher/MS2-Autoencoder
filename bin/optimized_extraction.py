@@ -14,7 +14,7 @@ def read_data(file):
 
     return data
 
-def find_MS2(data, directory):
+def find_MS2(data, directory, filename):
     """
     find MS2 scans from the data
     output to a list of indexes of MS2 scans
@@ -40,7 +40,7 @@ def find_MS2(data, directory):
                 mz_array = data[i].get('m/z array').tolist()
                 inten_array = data[i].get('intensity array').tolist()
 
-                return_sort_dict[i] = {'mz': mz, 'rt': rt, 'inten' : inten, 'id':id, 'mz array': mz_array, 'inten array' : inten_array}
+                return_sort_dict[i] = {'mz': mz, 'rt': rt, 'inten' : inten, 'id':id, 'mz array': mz_array, 'inten array' : inten_array, 'filename':filename}
                 
     #find all potential matches, regarless of precursor or overlap 
     for key, item in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True):
@@ -80,12 +80,6 @@ def find_MS2(data, directory):
             redun_check = False
     return (match_index_dict, return_sort_dict)
 
-
-def resolve_conflicts_pair(match_index_dict, return_sort_dict):
-    
-    for key, value in match_index_dict:
-        pass 
-
 def get_match_scans(sorted_dict, match_index_dict):
     """
     collect the information from the data for the matching molecules
@@ -111,7 +105,9 @@ def get_match_scans(sorted_dict, match_index_dict):
                                                 'precursorMz':mz, #precursorMz
                                                 'precursorIntensity':intensity, #precursorIntensity
                                                 'mz array':mz_array, #mz array 
-                                                'intensity array':intensity_array} #intensity array
+                                                'intensity array':intensity_array, 
+                                                'filename': sorted_dict[index]['filename'],
+                                                'scan': sorted_dict[index]['id']} #intensity array
     return processed_dict
 
 #use bin_array() for vecortizing and outputting zipped list of mz and intensity
@@ -175,7 +171,8 @@ def bin_array2(processed_dict):
                 binned_dict[key][i][scan] = {'retentionTime':rt, #retentionTime
                                             'precursorMz':mz, #precursorMz
                                             'precursorIntensity':intensity, #precursorIntensity
-                                            'intensity array':intensity_array} #intensity array
+                                            'intensity array':intensity_array, 'filename': processed_dict[key][i][scan]['filename'],
+                                            'scan': processed_dict[key][i][scan]['scan']} #intensity array
     return binned_dict
 
 def create_pairs(binned_dict):
@@ -349,7 +346,9 @@ def output_file(in_dict, directory, match_index=None, processed=None, binned=Non
         print('saved pairs_list to %s' %filename)
     
     elif ordered == True:
-        json = json.dumps(in_dict)
+        print("HERERERERERERERR")
+        print(in_dict)
+        #json = json.dumps(in_dict)
         filename = directory + '/ordered_list.json'
         with open(filename, 'w') as output:
             output.write(json)
@@ -384,6 +383,12 @@ def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):
         print('saved pairs_list to %s' %filename)
     
     elif ordered == True:
+        for a in in_dict:
+            if len(a) > 0:
+                for b in a:
+                    for c in b:
+                        print(c)
+                        c['intensity array'] = c['intensity array'].tolist()
         json = json.dumps(in_dict)
         filename = directory + '/ordered_list2.json'
         with open(filename, 'w') as output:
