@@ -2,8 +2,8 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D, InputLayer, Conv1DTranspose, Dropout, Flatten
-from tensorflow.keras.layers import Activation 
+from tensorflow.keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D, InputLayer, Conv1DTranspose, Dropout, Flatten, BatchNormalization
+from tensorflow.keras.layers import Activation, LeakyReLU 
 from tensorflow.keras.models import Model
 from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import TensorBoard
@@ -40,8 +40,8 @@ def generator(X_data, y_data, batch_size):
             y_batch = X_batch 
       
 
-        X_batch = np.add.reduceat(X_batch, np.arange(0, X_batch.shape[1], 100), axis=1)
-        y_batch = np.add.reduceat(y_batch, np.arange(0, y_batch.shape[1], 100),axis=1) 
+        #X_batch = np.add.reduceat(X_batch, np.arange(0, X_batch.shape[1], 100), axis=1)
+        #y_batch = np.add.reduceat(y_batch, np.arange(0, y_batch.shape[1], 100),axis=1) 
         i += 1
     
         yield X_batch, y_batch
@@ -137,13 +137,13 @@ def fit_val_model2(model, X_data, y_data):
     return model
 
 def predict_model(model, X_data):
-    batch_size = 256 
+    batch_size = 1 
     prediction = model.predict(x=test_generator(X_data, batch_size), max_queue_size=10, steps=X_data.shape[0] // batch_size)
     return prediction
 
 def eval_model(model, X_data, y_data):
-    batch_size = 128 
-    evaluation = model.evaluate_generator(generator=generator(X_data, y_data, batch_size),
+    batch_size = 256 
+    evaluation = model.evaluate(generator(X_data, y_data, batch_size),
                                             max_queue_size=40,
                                             steps=X_data.shape[0] // batch_size)
     return evaluation
@@ -154,7 +154,7 @@ def save_model(model, name_h5):
 
 def save_history(history, filename):
     with open(filename, 'wb') as file_pi:
-        pickle.dump(history.history, file_pi)
+        pickle.dump(history, file_pi)
     print('training history has been saved to %s' %filename)
 
 def load_history(history_file):
@@ -163,48 +163,66 @@ def load_history(history_file):
     return history_dict
 
 
-
-def model_Conv1D_lowres():
+def stacked():
     input_scan = Input(shape=(2000,1))
+    init = tf.keras.initializers.Orthogonal(seed=10)
+    #2000
+    hidden_1 = Conv1D(32, (5,), strides = 1, padding='same', kernel_initializer = init)(input_scan)
+    act_1 = tf.keras.activations.tanh(hidden_1)
+    max_pool_1 = MaxPooling1D(2)(act_1)
     
-    #2,000
-    hidden_1 = Conv1D(32, (3,), activation='relu', padding='same', activity_regularizer='l1')(input_scan)
-    hidden_2 = Conv1D(32, (3,), activation='relu', padding='same', activity_regularizer='l1')(hidden_1)
-    max_pool_1 = MaxPooling1D(2)(hidden_2)
-    print("Max Pool 1", max_pool_1.shape)
+    #1000
+    hidden_2 = Conv1D(32, (5,), strides = 1, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(max_pool_1)
+    act_2 = tf.keras.activations.tanh(hidden_2) 
+    bn_2 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_2)
+    print(act_2.shape)
+    max_pool_2 = MaxPooling1D(2)(bn_2)
+    
+    #500
+    hidden_9 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(max_pool_2)
+    act_9 = tf.keras.activations.tanh(hidden_9) 
+    bn_9 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_9)
+    print(act_9.shape)
+    max_pool_3 = MaxPooling1D(2)(bn_9) 
 
-    #1,000
-    hidden_3 = Conv1D(64, (3,), activation='relu', padding='same', activity_regularizer='l1')(max_pool_1)
-    hidden_4 = Conv1D(64, (3,), activation='relu', padding='same', activity_regularizer='l1')(hidden_3)
-    max_pool_2 = MaxPooling1D(2)(hidden_4)
-    print("Max Pool 2", max_pool_2.shape)
+    #100
+    hidden_13 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(max_pool_3)
+    act_13 = tf.keras.activations.tanh(hidden_13) 
+    bn_13 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_13)
+    print(act_13.shape)
+    max_pool_4 = MaxPooling1D(2)(bn_13)
+    
+    #50
+    hidden_15 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(max_pool_4)
+    act_15 = tf.keras.activations.tanh(hidden_15)
+    bn_15 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_15)
+    print(act_15.shape)
 
-    #500 BOTTLENECK
-    hidden_5 = Conv1D(128, (3, ), activation='relu', padding='same', activity_regularizer='l1')(max_pool_2) 
-    hidden_6 = Conv1D(128, (3, ), activation='relu', padding='same', activity_regularizer='l1')(hidden_5)
-    print("Max Pool 6", hidden_6.shape)
+    #100
+    conv_up_0 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(bn_15)
+    act_up_0 = tf.keras.activations.tanh(conv_up_0)
+    bn_22 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_up_0)
+    print(act_up_0.shape)
 
-    #1,000
-    up_2 = UpSampling1D(2)(hidden_6)
-    conv_up_2 = Conv1DTranspose(64, (2, ), activation='relu', padding='same')(up_2)
-    concat_2 = tf.keras.layers.Concatenate(axis=2)([conv_up_2, hidden_4])
-    print("Concat 2", concat_2.shape)
- 
-    hidden_11 = Conv1D(64, (3, ), activation='relu', padding='same', activity_regularizer='l1')(concat_2)
-    hidden_12 = Conv1D(64, (3, ), activation='relu', padding='same', activity_regularizer='l1')(hidden_11)
-    print("Hidden 12", hidden_12.shape)
+    #400
+    conv_up_1 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(bn_22)
+    act_up_1 = tf.keras.activations.tanh(conv_up_1)
+    bn_23 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_up_1)
+    print(act_up_1.shape)
 
-    #2,000
-    up_3 = UpSampling1D(2)(hidden_12)
-    conv_up_3 = Conv1DTranspose(64, (2, ), activation='relu', padding='same')(up_3)
-    concat_3 = tf.keras.layers.Concatenate(axis=2)([conv_up_3, hidden_2])
-    print("Concat 3", concat_2.shape)
+    #1000
+    conv_up_2 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(bn_23)
+    act_up_2 = tf.keras.activations.tanh(conv_up_2)
+    bn_7 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_up_2)
+    print(act_up_2.shape)
 
-    hidden_13= Conv1D(32, (3, ), activation='relu', padding='same', activity_regularizer='l1')(concat_3)
-    hidden_14= Conv1D(32, (3, ), activation='relu', padding='same', activity_regularizer='l1')(hidden_13)
-    print("Hidden 14", hidden_14.shape)
+    #2000
+    conv_up_3 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init)(bn_7)
+    act_up_3 = tf.keras.activations.tanh(conv_up_3)
+    print(act_up_3.shape)
 
-    decoded= Conv1D(1, (2, ), activation='relu', padding='same', activity_regularizer='l1')(hidden_14) #change inpuyt back to normal shape
+    decoded = Conv1D(1, (3, ), activation='tanh', padding='same')(bn_8)
+    
     print("Decoded", decoded.shape)
 
     adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
@@ -218,65 +236,75 @@ def model_Conv1D_lowres():
     return model
 
 
-def model_Conv1D():
-    input_scan = Input(shape=(200000,1))
+def model_Conv1D_lowres():
+    input_scan = Input(shape=(2000,1))
     
-    hidden_1 = Conv1D(32, (10,), strides = 10, activation='relu', padding='same')(input_scan)
-    hidden_2 = Conv1D(64, (10,), strides = 10, activation='relu', padding='same')(hidden_1)
-    print("Hidden 2", hidden_2.shape)
+    init = tf.keras.initializers.Orthogonal(seed=10)
+    act =tf.keras.regularizers.l1(0.000001) 
 
     #2,000
-    hidden_3 = Conv1D(128, (3,), activation='relu', padding='same')(hidden_2)
-    hidden_4 = Conv1D(128, (3,), activation='relu', padding='same')(hidden_3)
-    max_pool_1 = MaxPooling1D(2)(hidden_4)
-    print("Max Pool 1", max_pool_1.shape)
-
+    hidden_1 = Conv1D(32, (5,), strides = 1, padding='same', kernel_initializer = init)(input_scan)
+    act_1 = tf.keras.activations.tanh(hidden_1)    
+    hidden_2 = Conv1D(32, (5,), strides = 1, padding='same', kernel_initializer = init)(act_1)
+    act_2 = tf.keras.activations.tanh(hidden_2)
+    max_pool_1 = MaxPooling1D(2)(act_2)
+    print(max_pool_1.shape)
+    
     #1,000
-    hidden_5 = Conv1D(256, (3,), activation='relu', padding='same')(max_pool_1)
-    hidden_6 = Conv1D(256, (3,), activation='relu', padding='same')(hidden_5)
-    max_pool_3 = MaxPooling1D(2)(hidden_6)
-    print("Max Pool 3", max_pool_3.shape)
+    hidden_5 = Conv1D(64, (5,), strides = 1, padding='same', kernel_initializer = init)(max_pool_1)
+    act_5 = tf.keras.activations.tanh(hidden_5)
+    hidden_6 = Conv1D(64, (5,), strides = 1, padding='same', kernel_initializer = init)(act_5) 
+    act_6 = tf.keras.activations.tanh(hidden_6)
+    max_pool_2 = MaxPooling1D(2)(act_6)
+    print(max_pool_2.shape)
 
     #500
-    hidden_7 = Conv1D(512, (3, ), activation='relu', padding='same')(max_pool_3) 
-    hidden_8 = Conv1D(512, (3, ), activation='relu', padding='same')(hidden_7)
-    print("Hidden 8", hidden_8.shape)
+    hidden_9 = Conv1D(128, (5, ), strides = 1, padding='same', kernel_initializer = init)(max_pool_2)
+    act_9 = tf.keras.activations.tanh(hidden_9) 
+    hidden_10= Conv1D(128, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_9) 
+    act_10 = tf.keras.activations.tanh(hidden_10)
+    max_pool_3 = MaxPooling1D(2)(act_10)
+    print(max_pool_3.shape)
 
-    #1,000  
-    up_1 = UpSampling1D(2)(hidden_8)
-    conv_up_1 = Conv1DTranspose(256, (2, ), activation='relu', padding='same')(up_1)
-    concat_1 = tf.keras.layers.Concatenate(axis=2)([conv_up_1, hidden_6])
-    print("Concat 1", concat_1.shape)
+    #250
+    hidden_13 = Conv1D(256, (5, ), strides = 1, padding='same', kernel_initializer = init)(max_pool_3)
+    act_13 = tf.keras.activations.tanh(hidden_13)
+    hidden_14 = Conv1D(256, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_13) 
+    act_14 = tf.keras.activations.tanh(hidden_14)
+    print("Act 14 ", act_14.shape)
+    #500
+    conv_up_1 = Conv1DTranspose(128, (5, ), strides = 2, padding='same', kernel_initializer = init)(act_14)
+    act_up_1 = tf.keras.activations.tanh(conv_up_1)
+    concat_1 = tf.keras.layers.Concatenate(axis=2)([act_up_1, act_10])
+    hidden_25 = Conv1D(128, (5, ), strides = 1,padding='same', kernel_initializer = init)(concat_1)
+    act_25 = tf.keras.activations.tanh(hidden_25)
+    hidden_26 = Conv1D(128, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_25) 
+    act_26 = tf.keras.activations.tanh(hidden_26)
+    print("Act 26 ", act_26.shape) 
+    #1,000
+    conv_up_2 = Conv1DTranspose(64, (5, ), strides = 2, padding='same', kernel_initializer = init)(act_26)
+    act_up_2 = tf.keras.activations.tanh(conv_up_2)
+    concat_2 = tf.keras.layers.Concatenate(axis=2)([act_up_2, act_6])
+    hidden_29 = Conv1D(64, (5, ), strides = 1, padding='same', kernel_initializer = init)(concat_2)
+    act_29 = tf.keras.activations.tanh(hidden_29)
+    hidden_30 = Conv1D(64, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_29)
+    act_30 = tf.keras.activations.tanh(hidden_30)
+    print("Act 30 ", act_30.shape)
 
     #2,000
-    hidden_9 = Conv1D(256, (3, ), activation='relu', padding='same')(concat_1)
-    hidden_10 = Conv1D(256, (3, ), activation='relu', padding='same')(hidden_9)
-    print("Hidden 10", hidden_10.shape)
+    conv_up_3 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init)(act_30)
+    act_up_3 = tf.keras.activations.tanh(conv_up_3)
+    concat_3 = tf.keras.layers.Concatenate(axis=2)([act_up_3, act_2]) 
+    hidden_33 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init)(concat_3)
+    act_33 = tf.keras.activations.tanh(hidden_33)
+    hidden_34 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_33)  
+    act_34 = tf.keras.activations.tanh(hidden_34)
+    print("Act 34 ", act_34.shape)
+    decoded = Conv1D(1, (5, ), activation='tanh', padding='same', kernel_initializer = init)(act_34)
+    
+    print("Decoded ", decoded.shape)
 
-    #2,000
-    up_2 = UpSampling1D(2)(hidden_10)
-    conv_up_2 = Conv1DTranspose(128, (2, ), activation='relu', padding='same')(up_2)
-    concat_2 = tf.keras.layers.Concatenate(axis=2)([conv_up_2, hidden_4])
-    print("Concat 2", concat_2.shape)
-
-    hidden_11= Conv1D(128, (3, ), activation='relu', padding='same')(concat_2)
-    hidden_12= Conv1D(128, (3, ), activation='relu', padding='same')(hidden_11)
-    print("Hidden 12", hidden_12.shape)
-
-    #20,000
-    up_5 = UpSampling1D(10)(hidden_12)
-    hidden_13 = Conv1D(64, (3, ), activation='relu', padding='same')(up_5)
-    print("Hidden 13", hidden_13.shape)
-
-    #200,000
-    up_6 = UpSampling1D(10)(hidden_13)
-    hidden_14 = Conv1D(32, (3, ), activation='relu', padding='same')(up_6)
-    print("Hidden 23", hidden_14.shape)
-
-    decoded= Conv1D(1, (2, ), activation='relu', padding='same')(hidden_14) #change inpuyt back to normal shape
-    print("Decoded", decoded.shape)
-
-    adam = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
     name='Adam')
     
     cosine_loss = tf.keras.losses.CosineSimilarity(axis=1)
@@ -286,31 +314,32 @@ def model_Conv1D():
     model.compile(optimizer=adam, loss=cosine_loss, metrics=[metric])
     return model
 
-def model_deep_autoencoder():
-    input_size = 2000
-    encoding_dim = 100
-    input_scan = Input(shape=(input_size,))
-    
-    pre_hidden = Desne(2000, activation='relu')(input_scan)
-    hidden_1 = Dense(1000, activation='relu')(pre_hidden)
-    hidden_2 = Dense(500, activation='relu')(hidden_1)
+def model_classifier(): 
+    model = keras.Sequential()
+    model.add(Conv1D(32, (3,), strides = 2, padding = 'same', activation = 'relu', input_shape =(2000,1)))
+    model.add(Conv1D(64, (3,), strides = 2, padding = 'same', activation = 'relu'))
+    model.add(Conv1D(128, (3,), strides = 2, padding = 'same', activation = 'relu'))
+    model.add(Conv1D(256, (3,), strides = 2, padding = 'same', activation = 'relu'))
+    model.add(Flatten())
+    model.add(Dense(50, activation = 'relu'))
+    model.add(Dense(25, activation = 'relu'))
+    model.add(Dense(5, activation = 'softmax'))
 
-    encoded = Dense(encoding_dim, activation='relu')(hidden_2)
+    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    name='Adam')
 
-    hidden_3 = Dense(500, activation='relu')(encoded)
-    hidden_4 = Dense(1000, activation='relu')(hidden_3)
-    post_hidden=Dense(2000, activation='relu')(hidden_4)
-
-    decoded = Dense(input_size, activation='relu')(post_hidden)
-    autoencoder = Model(input_scan, decoded)
-    autoencoder.compile(optimizer='adadelta', loss='cosine_proximity', metrics=['accuracy'])
-    return autoencoder
-
+    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary()) 
+    return model
+   
 def fit_autoencoder(autoencoder, X_data, y_data):    
     batch_size = 512 
-    split = 0.5
+    split = 1
     test_size = int(batch_size * (1-split))
-    epochs = 5
+    test_size = 32 
+    print("Test Size ", test_size)
+    
+    epochs = 6 
     idx = X_data.shape[0]
 
     print("Total X", X_data.shape)
@@ -319,23 +348,29 @@ def fit_autoencoder(autoencoder, X_data, y_data):
     test_loss = []
     train_loss = []
     test_acc = []
+    train_acc = []
     i = 0
     list_of_indices = []
-    
-    while i < idx:
+
+    while i+batch_size+test_size < 3300000 and i+batch_size+test_size < idx:
         temp_tuple = (i, i+batch_size+test_size)
         list_of_indices.append(temp_tuple)
         i += batch_size+test_size
 
+    for c, thing in enumerate(list_of_indices):
+        if c < 10:
+            print(thing)
+
     training_indices = []
     testing_indices = []
+
     for index_set in list_of_indices:
         training_indices.append((index_set[0], index_set[0] + batch_size))
         testing_indices.append((index_set[0] + batch_size, index_set[1]))
-
+        
     for epoch in range(epochs): 
         t0 = time.time()
-        print("\nStart of epoch %d" % (epoch,))
+        print("\nStart of epoch %d" % (epoch + 1,))
         list_of_indices = []
         
         random.seed(10)
@@ -345,29 +380,43 @@ def fit_autoencoder(autoencoder, X_data, y_data):
         val_loss = []
         acc_loss = []
         cos = []
+        t_cos = []
         for step, train_indices in enumerate(training_indices):
             start_train = train_indices[0]
             end_train = train_indices[1]
             
             if step == 0 and epoch == 0:
-                print("Data shape", X_data[start_train:end_train].shape)
-                print("Data shape y", y_data[start_train:end_train].shape)
-            train_dict = autoencoder.train_on_batch(X_data[start_train:end_train], y_data[start_train:end_train], return_dict=True)
+                print(start_train, end_train)
+                print("Data Shape Train", X_data[start_train:end_train].shape)
+                
+            
+            train_x = np.expand_dims(X_data[start_train:end_train], axis=2)
+            train_y = np.expand_dims(y_data[start_train:end_train], axis=2)
+            train_dict = autoencoder.train_on_batch(train_x, train_y, return_dict=True)
             val_loss.append(train_dict['loss'])
-      
-        for test_indices in training_indices:
+            t_cos.append(train_dict['cosine_similarity'])
+
+        for step, test_indices in enumerate(testing_indices):
             start_test = test_indices[0]
             end_test = test_indices[1]
-            test_dict = autoencoder.test_on_batch(X_data[start_test:end_test], y_data[start_test:end_test], return_dict=True)
+
+            if step == 0 and epoch == 0:
+                print("Data shape test", X_data[start_test:end_test].shape)
+            test_x = np.expand_dims(X_data[start_test:end_test], axis =2)
+            test_y = np.expand_dims(y_data[start_test:end_test], axis = 2)
+
+            test_dict = autoencoder.test_on_batch(test_x, test_y, return_dict=True)
             acc_loss.append(test_dict['loss'])
             cos.append(test_dict['cosine_similarity'])
             
         test_acc.append(np.mean(cos))
+        train_acc.append(np.mean(t_cos))
         test_loss.append(np.mean(acc_loss))
         train_loss.append(np.mean(val_loss))
-        print('Cosine Similarity Test ' + str(np.mean(cos)))
-        print('Validation Loss: ' + str(np.mean(val_loss)))
-        print('Training Loss: ' + str(np.mean(acc_loss)))
+        print('Train Cosine Similarity ' + str(np.mean(t_cos)))
+        print('Test Cosine Similarity ' + str(np.mean(cos)))
+        print('Train Loss: ' + str(np.mean(val_loss)))
+        print('Test Loss: ' + str(np.mean(acc_loss)))
         
         if epoch == 0:
             print(autoencoder.summary())
@@ -375,7 +424,7 @@ def fit_autoencoder(autoencoder, X_data, y_data):
         t1 = time.time()
 
         print("Total Epoch Time: ", t1-t0)
-    loss_dict = {'test_loss':test_loss, 'train_loss':train_loss, 'test_acc' : test_acc}
+    loss_dict = {'test_loss':test_loss, 'train_loss':train_loss, 'test_acc' : test_acc, "train_acc": train_acc}
     return(autoencoder, loss_dict)
 
 def pickle_loss_dict(loss_dict, model_name):
