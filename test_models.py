@@ -16,18 +16,21 @@ dirname = os.path.dirname(os.path.realpath(__file__))
 data = os.path.join(dirname, args.data)
 model_path = os.path.join(dirname, args.model)
 
-#my line
-model_path = "./models/autoencoder/cos_red_autoencoder.h5"
+model_path = "./models/conv1d/conv1d_42.h5"
 
-with tf.device('/cpu:0'):
-    model = load_model(model_path)
 
-    f = h5py.File(data, 'r')
-    dataset_low = f['low_peaks']
-    dataset_high = f['high_peaks']
-    prediction = ms2_model.predict_model(model, dataset_low)
-    #evaluation = ms2_model.eval_model(model, dataset_low, dataset_high)
-    #print('Testing accuracy: ', evaluation[1])
+model = load_model(model_path)
+
+
+f = h5py.File(data, 'r')
+dataset_low = f['low_peaks']
+dataset_high = f['high_peaks']
+
+prediction = ms2_model.predict_model(model, dataset_low)
+
+#evaluation = ms2_model.eval_model(model, dataset_low, dataset_high)
+#print(evaluation)
+#print('Testing accuracy: ', evaluation[1])
 
 save_path = os.path.join(dirname, 'predictions.npy')
 np.save(save_path, prediction)
