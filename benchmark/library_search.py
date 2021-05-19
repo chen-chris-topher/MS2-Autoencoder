@@ -25,6 +25,25 @@ from pyteomics import mgf
 from scipy.spatial.distance import cosine
 from scipy.stats import binned_statistic
 
+def fetch_molecular_formula(ccms_list, data):
+    ccms_l = []
+    formula = []
+
+    for lib_entry in data:
+        ccms_id = lib_entry['spectrum_id']
+        if ccms_id in ccms_list:
+            compound_inchi = lib_entry['Formula_inchi']
+            compound_smiles = lib_entry['Formula_smiles']
+            if len(compound_inchi) > 0:
+                formula.append(compound_inchi)
+                ccms_l.append(ccms_id)
+            elif len(compound_smiles) > 0:
+                formula.append(compound_smiles)
+                ccms_l.append(ccms_id)
+    compound_name_df = pd.DataFrame({'SpectrumID_ccms':ccms_l, 'Formulas':formula})
+    compound_name_df.to_csv("molecular_formulas.csv")
+ 
+
 def fetch_compound_name(ccms_list, data):
     
     ccms_l = []
@@ -42,7 +61,7 @@ def fetch_compound_name(ccms_list, data):
             name.append(compound_name)
     
     compound_name_df = pd.DataFrame({'SpectrumID_ccms':ccms_l, 'Compound_Name_ccms':name, 'Smiles_ccms':smiles, 'INCHI_ccms':inchi})
-    compound_name_df.to_csv("compound_names_2.csv")
+    compound_name_df.to_csv("compound_names_1_10000.csv")
   
 def download_library_spectra():
     """
@@ -70,7 +89,7 @@ def extract_library_spectra(data):
     
     #loop over entire library
     for lib_entry in data: 
-        if lib_entry['Instrument'] == 'Orbitrap' and (lib_entry['Ion_Mode'] == mode or lib_entry['Ion_Mode'] == 'positive'):     
+        if (lib_entry['Instrument'] == 'Orbitrap' or 'Q-E' in lib_entry['Instrument']) and (lib_entry['Ion_Mode'] == mode or lib_entry['Ion_Mode'] == 'positive'):     
             ccms_id = lib_entry['spectrum_id']
             peaks = lib_entry['peaks_json']
             peaks = ast.literal_eval(peaks)
@@ -81,7 +100,6 @@ def extract_library_spectra(data):
             #bin the sepctra nominally
             binned_intensity, binned_mz, _ = binned_statistic(mz_array, inten_array, statistic='sum', bins=2000, range=(0, 2000))
                        
-
             #normalize and drop low values
             inten_max = np.amax(binned_intensity)
             binned_intensity = np.true_divide(binned_intensity, inten_max)
@@ -89,21 +107,19 @@ def extract_library_spectra(data):
             
             yield(binned_intensity, ccms_id)
     
-def make_hdf5_file():
+def make_hdf5_file(name):
     """
     Function makes hdf5 file for storage with metadata
     column for CCMS Lib ID storage.
     """
-    name = 'lib_spectra_3.hdf5'
-
+    
     with h5py.File(name, 'w') as f:
         dataset = f.create_dataset('lib_spectra', shape=(1, 2000), maxshape=(None, 2000),compression='gzip')
         f.close()
 
-def write_to_hdf5(data):
+def write_to_hdf5(data, name):
     lib_id_list = []
-    name = 'lib_spectra_3.hdf5'
-
+ 
     for binned_intensity, ccms_id in extract_library_spectra(data):
         if np.isnan(binned_intensity).any():
             continue
@@ -124,7 +140,7 @@ def write_to_hdf5(data):
                 print(dataset.shape)
 
     
-    with open('ccms_spectra_3.txt', 'w') as f:
+    with open('ccms_spectra.txt', 'w') as f:
         for item in lib_id_list:
             f.write("%s\n" % item)
 
@@ -141,18 +157,19 @@ def check_file():
     print(len(lines))
 
 def read_hdf5():
-    name = 'lib_spectra_3.hdf5'
+    name = 'lib_spectra.hdf5'
     f = h5py.File(name, 'r')
     data = f.get('lib_spectra').value
     print("Lib Data Shape ", data.shape)
     return(data)
 
 def reformat_mgf(data, full_data, ccms_list, paramFilename):
+    print("Reformating mgf")
     from pyteomics import mgf
     count =1 
     mz_array = range(0,2000)
     spectra_list = []
-
+    pass_num = 0
     #go trhough the ccms_list one at a time
     for ccms, i_data in zip(ccms_list, data):
         for a in full_data:
@@ -165,57 +182,69 @@ def reformat_mgf(data, full_data, ccms_list, paramFilename):
             
                 file_mz_array = [item[0] for item in peaks]
                 file_inten_array = [item[1] for item in peaks]
-                prec = max(file_inten_array) 
+                prec = max(file_inten_array)
+                file_inten_array = [item/prec for item in file_inten_array]
+                 
                 file_floor_mz = [math.floor(item) for item in file_mz_array] #this should equal bin
 
                 new_mz = []
                 new_inten = []
-                 
                 for m, i in zip(mz_array, intensity_array):
                     #we don't predict no peak
                     if float(i) > 0.0:
-
+                         
                         #if it exists in the original spectra
                         if m in file_floor_mz:
                             #find all mz value location in file data
-                            places = [i for i, x in enumerate(file_floor_mz) if x == m]        
-                            #print(places)
-                            #find the associated intensity values
-                            intens = [file_inten_array[i] for i in places]
-                            #print(intens)
+                            places = [a for a, x in enumerate(file_floor_mz) if x == m]        
                             
-                            large_inten_loc = intens.index(max(intens))
-                            #print(intensity_array, mz_array) 
-                            actual_mz = file_mz_array[places[large_inten_loc]] 
-                            #print(actual_mz, i)
-                            new_mz.append(round(actual_mz,4))    
-                            new_inten.append(i * prec)
-                            #print(m, actual_mz)
-                        
+                            intens_og = [file_inten_array[a] for a in places]
+                            #find the associated intensity values
+                            intens = [a for a in places if file_inten_array[a] > 0.005]
+                            if len(intens) == 0:
+                                continue
+                            
+                            #actual m/z
+                            actual_mz = [round(file_mz_array[a],4) for a in intens]
+                            og_inten = [round(file_inten_array[a],4) for a in intens]
+                            
+                           
+                            og_sum = max(og_inten)
+                            og_inten_part = [a/og_sum for a in og_inten]
+                            
+                            og_inten_split = [(a*i)*prec for a in og_inten_part] #split the predicted inten between em
+                            new_inten.extend(og_inten_split)
+                            new_mz.extend(actual_mz)
+                             
                         #if it's added noise
-                        else:                            
+                        else:
                             number_gen = random.randint(1000,9999)
                             mz_gen = (number_gen / 10000) + m   
                             new_mz.append(round(mz_gen,4))
                             new_inten.append(i * prec)
-                        
+                
+                if ccms == 'CCMSLIB00005885077':
+                    print(new_mz, new_inten)
+                
                 filename = item['source_file'] 
                 mz = item['Precursor_MZ']
                 rt = 0.0
                 charge = item['Charge']
                 intensity = 0.0
                               
-                parameters = {"FEATURE_ID": count, 'FILENAME': filename, 'PEPMASS' : str(mz), "SCANS": count, "CCMSLIB": item['spectrum_id'], "RTINSECONDS" : rt, "CHARGE" : "1+", "MSLEVEL" : "2", "PRECURSORINTEN":prec}
+                parameters = {"FEATURE_ID": count, 'FILENAME': filename, 'PEPMASS' : str(mz), "SCANS": count, "CCMSLIB": ccms, "RTINSECONDS" : rt, "CHARGE" : "1+", "MSLEVEL" : "2", "PRECURSORINTEN":prec}
                 spectra = [{'m/z array' : new_mz, 'intensity array': new_inten, 'params': parameters}]
                
                 spectra_list.extend(copy.deepcopy(spectra))
-                 
-                count += 1
+                
                 if count % 1000 == 0:
                     print(count)
-        
-    mgf.write(spectra = spectra_list, output = "./%s" %paramFilename, write_charges = False, use_numpy = True)    
-
+                if count == 95000: 
+                    pass_num += 1
+                    mgf.write(spectra = spectra_list, output = "./%s_%s.mgf" %(paramFilename,pass_num), write_charges = False, use_numpy = True)    
+                    count = 0
+                    spectra_list = []
+                count += 1
 def special_mirror_plots(spectra_1, mz_1, spectra_2):
     import spectrum_utils.plot as sup
     import spectrum_utils.spectrum as sus
@@ -239,7 +268,7 @@ def special_mirror_plots(spectra_1, mz_1, spectra_2):
 
 def read_ccms():
     ccms_list = []
-    with open('ccms_spectra_3.txt') as hf:
+    with open('ccms_spectra.txt') as hf:
         for line in hf:
             ccms_list.append(line.strip()) 
     return(ccms_list)
@@ -250,7 +279,7 @@ def count_original_peaks(ccms_list, lib):
         peak_count.append(np.count_nonzero(item))
         
     df = pd.DataFrame({'peak_count':peak_count})
-    df.to_csv("peak_count_2.csv")
+    df.to_csv("peak_count_1_10000.csv")
 
 def count_added_peaks(ccms_list, lib, noisy):
     import seaborn as sns
@@ -259,9 +288,93 @@ def count_added_peaks(ccms_list, lib, noisy):
         item1 = np.count_nonzero(item1)
         item2 = np.count_nonzero(item2)
         added_peaks.append(item2 - item1)
-    
+    sns.distplot(added_peaks, hist='False')    
+    plt.show()
     df = pd.DataFrame({'added_peaks':added_peaks})
-    df.to_csv('added_peaks_2.csv')
+    df.to_csv('added_peaks_1_10000.csv')
+
+
+def percent_of_noise_added_removed(final_lib, denoised_peaks, noisy_peaks):
+    added = []
+    not_re = []
+    re = []
+    fpr = []
+
+    tp = []
+
+    #final_lib = final_lib[:100000]
+    #denoised_peaks = denoised_peaks[:100000]
+    #noisy_peaks = noisy_peaks[:100000]
+    for count,(lib, denoi, noi) in enumerate(zip(final_lib, denoised_peaks, noisy_peaks)):
+        noise_kept = 0
+        noise_added = 0
+        noise_removed = 0
+        total_real_peaks = 0
+        
+        false_peak_removal = 0
+        true_negatives = 0
+        false_negatives = 0
+        
+       
+        for a,b,c in zip(lib, denoi, noi):
+            #FP
+            #we shouldn't remove it, and we do remove it
+            if a > 0 and b == 0:
+                false_peak_removal += 1
+            #it appeared in the of spectra
+            if a > 0:
+                total_real_peaks += 1
+            #TN
+            #we shouldn't remove it, and we don't remove it
+            if a > 0 and b > 0:
+                true_negatives += 1
+            #TP
+            #we should remove it, and we do remove it
+            if c > 0 and a == 0 and b ==0:
+                noise_removed += 1
+            
+            #FN
+            #we should remove it, and we don't remove it
+            if c > 0 and a == 0 and b > 0:
+                noise_kept += 1
+            
+            if a == 0 and c > 0:
+                noise_added += 1
+            
+        if total_real_peaks > 0 and noise_added != 0 and true_negatives + false_peak_removal >0 and noise_removed+noise_kept > 0:
+            fpr.append(false_peak_removal/(false_peak_removal+true_negatives))
+            re.append(noise_removed/(noise_removed+noise_kept))
+            
+            not_re.append(noise_kept /noise_added)
+        if count % 1000 == 0:
+            print(count)
+    fig, ax = plt.subplots(ncols=1, figsize=(8, 8))
+    import seaborn as sns
+
+    #ax.hexbin(fpr, re,bins='log', gridsize=50, cmap='Purples', mincnt=1)
+    #ns.set_style("whitegrid")
+    fpr = np.array(fpr)
+    re = np.array(re)
+    print(len(fpr))
+    print(len(re))
+    sns.histplot(x=np.array(fpr), y=np.array(re), bins=25, stat='density')
+    #sns.scatterplot(x=fpr[:1000], y =re[:1000])
+    #ax.plot([0, 1], [0, 1], color = 'black')
+    plt.xlabel('False Positive')
+    plt.ylabel('True Positive')
+    
+    """
+    sns.distplot(fpr, hist=False, color = 'blue')
+    plt.show()
+    plt.close()
+
+    ax = sns.distplot(x=re, color = 'blue', hist = False)
+    #ns.distplot(x=not_re, color= 'darkgreen', hist=False)
+    fig.legend(labels=['Percent of Noise Removed'])
+    plt.xlabel('Percent of Noise Removed')
+    """
+    plt.show()
+
 def filter_data(data, ccms_list):
     new_data = []
     for item in data:
@@ -269,26 +382,31 @@ def filter_data(data, ccms_list):
             new_data.append(item)
         
     return(new_data)
+
 def main():
+    #make_hdf5_file('lib_spectra.hdf5')
+    #data = download_library_spectra()
+    #write_to_hdf5(data, 'lib_spectra.hdf5')
+    #sys.exit()
     
-    #make_hdf5_file()
-    data = download_library_spectra()
-    #write_to_hdf5(data)
-    #sys.exit(0) 
-    #check_file()
-
-    lib_data = read_hdf5()[:2000]
+    lib_data = read_hdf5()[:10000] 
     lib_data = bin_reduce_normalize(lib_data)
-   
-
     final_lib = lib_data
 
     for i in range(1,20):
         final_lib = np.concatenate((final_lib, lib_data))
+    ccms_list = []
+    with open('new_ccms_list.txt', 'r') as hf:
+        for line in hf:
+            ccms_list.append(line.strip())
     
-    noisy_peaks = np.load('./noisy_peak_spoof_master_2.npy')
-    denoised_data = np.load('./predictions_spoof_master_2.npy') 
-    """
+    final_lib = np.load('./original.npy')
+    final_lib = bin_reduce_normalize(final_lib)
+    noisy_peaks = np.load('./noise_added.npy')
+    noisy_peaks = bin_reduce_normalize(noisy_peaks)
+    denoised_data = np.load('./predictions.npy') 
+    
+        
     mset = set(range(0,2000))
     first_pass = True
     for count, (n, d) in enumerate(zip(noisy_peaks, denoised_data)):
@@ -299,39 +417,72 @@ def main():
         d[zeroi] = 0.0
         denoised_data[count] = d
             
-    np.save('./denoised_processed_data_2.npy', denoised_data)
+    #np.save('./denoised_processed_data_1_10000.npy', denoised_data)
+    
+    #enoised_data = np.load('./denoised_processed_data_1_10000.npy')
+    #denoised_data_2 = np.load('./lib_specs/denoised_processed_data_5000_10000_2.npy')
+    #denoised_all = np.concatenate((denoised_data, denoised_data_2))
+    
+    msr = np.load('../../MSREDUCE/ms_reduce.npy')
+    noisy = np.load('../../MSREDUCE/original_peaks.npy')
+    og_msr = np.load('../../MSREDUCE/ms_reduce_noiseless.npy')
+    
+    #ccms_list = read_ccms()[:10000]
     """
-    denoised_data = np.load('./denoised_processed_data_2.npy')
-         
-    ccms_list = read_ccms()[:2000]
+    print(ccms_list.index('CCMSLIB00005719856'))
+    for count, i in enumerate(final_lib[106081]):
+        if i > 0:
+            print(count, i)
+    for count, i in enumerate(noisy_peaks[106081]):
+        if i > 0:
+            print(count, i)
+    
+    print(1-cosine(final_lib[106081], noisy_peaks[106081]))
+    """
+    #fetch_molecular_formula(ccms_list, data)
+    
     og_ccms = ccms_list
-    fetch_compound_name(ccms_list, data)
-    
-    final_lib = final_lib
-    
+
+    #fetch_compound_name(ccms_list, data)
+     
     print("Final Lib ", final_lib.shape)
     print("Denoised Data ",denoised_data.shape)
     print("Noisy Peaks ", noisy_peaks.shape)
-    ccms_list = ccms_list * 20
-    ccms_list = ccms_list
+    
+    #ccms_list = ccms_list * 20
+    
     print("CCMS List ", len(ccms_list))
     
-    count_original_peaks(ccms_list, final_lib)
-    count_added_peaks(ccms_list, final_lib,noisy_peaks) 
-    sys.exit(0)
-    #mirror_plots(final_lib[94], denoised_data[94].T)
+    #count_original_peaks(ccms_list, final_lib)
+    
+    #count_added_peaks(ccms_list, final_lib,noisy_peaks)      
+    #percent_of_noise_added_removed(final_lib, denoised_data, noisy_peaks)
      
+    #mirror_plots(noisy_peaks[4], final_lib[4].T) 
+    #sys.exit(0)
     #print(1-cosine(final_lib[1155], denoised_data[1155].T))
-
-    #cosine_score(denoised_data, final_lib, noisy_peaks)
+    #cosine_score(denoised_data, final_lib, noisy_peaks, ccms_list)
+    
+    print(noisy.shape)
+    print(msr.shape)
+    print(og_msr.shape)
+    #cosine_score(denoised_data, final_lib, noisy_peaks, noisy[1:], msr[1:], og_msr)
+    #sys.exit() 
     #special_mirror_plots(spectra_1, mz_1, spectra_2)        
-    print("Before reformatting mgf")    
-    data = filter_data(data, og_ccms)
+    #print("Before reformatting mgf")    
+    #data = filter_data(data, og_ccms)
+    #print(len(data))
+    #son_string = json.dumps(data)
+    import ast
+    with open('dats.json', 'r') as json_file:
+        data = json.load(json_file)
+    data = ast.literal_eval(data)
+    
     print(len(data))
-    reformat_mgf(denoised_data, data, ccms_list, 'denoised_40.12.mgf')
-    reformat_mgf(final_lib, data, ccms_list, 'lib_data_40.12.mgf')
-    reformat_mgf(noisy_peaks, data, ccms_list, 'noisy_40.12.mgf')
-    launch_lib_search()
+    reformat_mgf(final_lib, data, ccms_list, 'lib_data_42.5')
+    reformat_mgf(denoised_data, data, ccms_list, 'denoised_42.5')
+    reformat_mgf(noisy_peaks, data, ccms_list, 'noisy_42.5')
+    
 
 if __name__ == "__main__":
     main()
