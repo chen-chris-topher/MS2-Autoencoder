@@ -314,24 +314,7 @@ def model_Conv1D_lowres():
     model.compile(optimizer=adam, loss=cosine_loss, metrics=[metric])
     return model
 
-def model_classifier(): 
-    model = keras.Sequential()
-    model.add(Conv1D(32, (3,), strides = 2, padding = 'same', activation = 'relu', input_shape =(2000,1)))
-    model.add(Conv1D(64, (3,), strides = 2, padding = 'same', activation = 'relu'))
-    model.add(Conv1D(128, (3,), strides = 2, padding = 'same', activation = 'relu'))
-    model.add(Conv1D(256, (3,), strides = 2, padding = 'same', activation = 'relu'))
-    model.add(Flatten())
-    model.add(Dense(50, activation = 'relu'))
-    model.add(Dense(25, activation = 'relu'))
-    model.add(Dense(5, activation = 'softmax'))
-
-    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
-    name='Adam')
-
-    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['accuracy'])
-    print(model.summary()) 
-    return model
-   
+  
 def fit_autoencoder(autoencoder, X_data, y_data):    
     batch_size = 512 
     split = 1
