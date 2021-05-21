@@ -33,6 +33,7 @@ MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is 
 4. Run nextflow and watch data extract
     1. nextflow run extract_mzxml.nf -c cluster.config
         * The work folder gets large, in between runs it's helpful to delete it        
+
 ### 2. Stitch .npz into .hdf5
 1. Use SCP to transfer extracted outdirs from cluster to local (advised that .json files are *rm -r* from outdir)
     * only **ready_array2.npz** or a .npz file is needed for stitching
@@ -41,7 +42,10 @@ MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is 
 4. **processing.py** will concatenate all .npz; it will output two .hdf5 files
     1. Autoencoder structured dataset
     2. Convolution neural network 1D structured dataset
-    
+
+** If you'd like to do all of the above at the same time, check all the parameters listed, then run 
+script download_extract_repeat.py (https://github.com/laserc/MS2-Autoencoder/blob/chrissys_branch_3/download_extract_repeat.py) 
+
 ### 3. Train models
 1. Model architecture is outlined in ms2-autoencoder.py, ms2-conv1d.py, ms2-deepautoencoder.py
 2. Generators, training, evaluating, predicting, and all model architectures are in ms2_model.py
