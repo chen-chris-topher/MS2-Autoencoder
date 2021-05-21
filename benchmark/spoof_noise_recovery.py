@@ -1,5 +1,5 @@
 """
-code takes sample datasets, spoof in low level
+code takes sample datasets, spoofs in low level
 random noise, then tries to denoise. calculates 
 number of peaks successfully recovered and peaks
 missed in the denoising process
@@ -14,18 +14,10 @@ import matplotlib.pyplot as plt
 import scipy.sparse as sp
 import scipy.stats as stats
 from scipy.spatial.distance import cosine
+from sklearn.preprocessing import normalize
 
 #set seed for reproducibility
 random.seed(10)
-
-#model being used for test
-model_name = '../models/conv1d/conv1d_40.h5'
-
-#datasets being tested against
-DATASET_1 = 'lib_spectra_3.hdf5'
-DATASET_2 = ''
-DATASET_3 = ''
-
 
 #define a custom noise distribution
 def distribution(peaks):
@@ -45,38 +37,48 @@ def distribution(peaks):
     plt.show()
 
 #takes two spectra and produces mirror plots
-def mirror_plots(spectra_1, spectra_2):
+def mirror_plots(spectra_1, spectra_2, troubleshoot=False):
+    """
+    Attributes
+    ----------
+    spectra_1 : array-like, dimension (,2000)
+        the top spectrum on the mirror plot, masses binned 0-2000
+
+    spectra_2: array-like, dimension (,2000)
+        the bottom spectrum on the mirror plot, masses binned 0-2000
+    
+    troubleshoot: bool
+        whether or not to print the nonzero values of both spectra
+        to determine if they are what we intend to visualize
+    """
+    
     import spectrum_utils.plot as sup
     import spectrum_utils.spectrum as sus
 
     mz = np.arange(0,2000)
     spectra = []
     
-    print(spectra_1.shape)
-    print(spectra_2.shape)
-    
+    #dealing with potential formatting issues
     spectra_1 = np.array(spectra_1)
     spectra_2 = np.array(spectra_2)
-
     spectra_1 = np.squeeze(spectra_1)
     spectra_2 = np.squeeze(spectra_2)
 
-    for count,m1 in enumerate(spectra_1):
-        if m1 > 0.0:
-            print(count)
-
-    print("MS2")
-    for count,m1 in enumerate(spectra_2):
-        if m1 > 0.0:
-            print(count)
-
-
-
+    #used for trouble-shooting, making sure we are looking at the correct spetra
+    if troubleshoot:
+        for count,m1 in enumerate(spectra_1):
+            if m1 > 0.0:
+                print(count)
+        print('\n')
+        print("MS2")
+        for count,m1 in enumerate(spectra_2):
+            if m1 > 0.0:
+                print(count)
 
     spectra_list = [spectra_1, spectra_2]
     for spec in spectra_list:
         spectra.append(sus.MsmsSpectrum(identifier=0, precursor_mz=0, precursor_charge=0, mz=mz, intensity=spec))
-
+    
     fig, ax = plt.subplots(figsize=(12, 6))
     spectrum_top, spectrum_bottom = spectra
     sup.mirror(spectrum_top, spectrum_bottom, ax=ax)
@@ -84,20 +86,66 @@ def mirror_plots(spectra_1, spectra_2):
 
 #calculate the cosine score of reocovered data versus original
 #pre, actual, noisy
-def cosine_score(peaks_1, peaks_2, peaks_3):
-    import seaborn as sns
+def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6 = None):
+    """
+    Attributes
+    ---------
+
+
+
+    """
     
+    
+    import seaborn as sns
+    print(peaks_1.shape)
+    print(peaks_2.shape)
+    print(peaks_3.shape)
     all_cos_scores = []
     side_cos = []
     label = []
     val = []
-    for count, (peak1, peak2, peak3) in enumerate(zip(peaks_1, peaks_2, peaks_3)):
-        low_high_cos = 1 - cosine(peak3, peak2)
-        pre_high_cos = 1 - cosine(peak1, peak2)
+   
+
+    #noisy, predicted, original
+    if peaks_4 is not None:
+        print(peaks_4.shape)
+        print(peaks_5.shape)
+        print(peaks_6.shape)
+        msr_cos = []
+        og_noisy = []
         
+        failed = []
+        og_failed_peaks = []
+        og_success_peaks = []
+        for count,(a,b,c) in enumerate(zip(peaks_4, peaks_5, peaks_6)): 
+            if np.max(b) == 0:
+                og_failed_peaks.append(np.count_nonzero(c))
+                msr_cos.append(1-cosine(c,b))
+                og_noisy.append(1-cosine(a,c))
+            else:
+                og_success_peaks.append(np.count_nonzero(c))
+            
+        fig = plt.figure(figsize=(10,6))
+        sns.set_style("whitegrid")
+        sns.distplot(og_failed_peaks, color='forestgreen', hist=False)
+        sns.distplot(og_success_peaks, color='deepskyblue', hist=False)
+        ax2 = plt.axes() 
+        ax2.set_ylabel('Distribution')
+        ax2.set_xlabel('Number of Peaks')
+        ax2.set_title('Distribution of Number of Peaks by MSREDUCE Occurred/Failured')
+        fig.legend(labels=['Number of Peaks MSREDUCE Failed','Number of Peaks MSREDUCE Occurred'])
+        plt.show()
+        plt.close()
+        
+    
+    #predicted, original,noisy
+    for count, (peak1, peak2, peak3) in enumerate(zip(peaks_1, peaks_2, peaks_3)):
+        low_high_cos = 1 - cosine(peak2, peak3)
+        pre_high_cos = 1 - cosine(peak1, peak2)
+
         all_cos_scores.append(pre_high_cos)
         side_cos.append(low_high_cos)
-
+        """
         if low_high_cos >= 0.5 and low_high_cos < 0.6:
             label.append('0.5-0.6')
         elif low_high_cos >=0.6 and low_high_cos < 0.7:
@@ -108,20 +156,49 @@ def cosine_score(peaks_1, peaks_2, peaks_3):
             label.append('0.8-0.9')
         elif low_high_cos >= 0.9:
             label.append('0.9-0.98')
+        else:
+            continue
+        """
+        if low_high_cos >= 0.80 and low_high_cos < 0.85:
+            label.append('0.80-0.85')
+        elif low_high_cos >=0.85 and low_high_cos < 0.90:
+            label.append('0.85-0.90')
+        elif low_high_cos >= 0.90 and low_high_cos < 0.95:
+            label.append('0.90-0.95')
+        elif low_high_cos >= 0.95:
+            label.append('0.95-1.0')
+        else:
+            continue
+        
         val.append(pre_high_cos-low_high_cos)
-    ax = sns.boxplot(x=label, y=val, order=["0.5-0.6", "0.6-0.7", "0.7-0.8","0.8-0.9", "0.9-0.98"], palette="Purples")
+    ax = sns.boxplot(x=label, y=val, order=["0.80-0.85", "0.85-0.90","0.90-0.95", "0.95-1.0"], palette="Purples")
+    plt.axhline(y=0, color='orange')
+    #ax = sns.boxplot(x=label, y=val, order=["0.5-0.6", "0.6-0.7", "0.7-0.8","0.8-0.9", "0.9-0.98"], palette="Purples")
     plt.show()
     plt.clf()
 
     fig = plt.figure(figsize=(10,6))
     sns.set_style("whitegrid")
-    sns.distplot(all_cos_scores, color = 'orange')
-    sns.distplot(side_cos, color = 'purple')
+    
+    sns.distplot(all_cos_scores, color = 'orange', hist=False)
+    sns.distplot(side_cos, color = 'purple', hist = False)
+    
+    if peaks_4 is not None:
+        sns.distplot(msr_cos, color ='blue', hist=False, norm_hist=True)
+        #sns.distplot(og_noisy, color= 'darkgreen', hist=False)
+    
     ax2 = plt.axes()
+    
     ax2.set_ylabel('Distribution')
     ax2.set_xlabel('Cosine Score')
     ax2.set_title('Recovery of Spetcra after Adding Noise')
-    fig.legend(labels=['Predicted vs. Original','Noisy vs. Original'])
+    #ax2.set_xlim(0.5, 1)
+    #ax2.set_ylim(0,1)
+    
+    if peaks_4 is not None:
+        fig.legend(labels=['Predicted Autoencoder vs. Original Spectra','Noisy Autoencoder vs. Original Spectra', 'Predicted MSREDUCE vs. Original Spectra'])
+    else:
+        fig.legend(labels=['Predicted vs. Original','Noisy vs. Original'])
     plt.show()
 
 #loads model and predicts on the test dataset
@@ -138,43 +215,29 @@ def denoise(peaks):
         prediction = model.predict(test_data, batch_size=batch_size)
         i += batch_size
         all_predictions.append(prediction)
-
+        if i % 1000 == 0:
+            print(i)
     return(np.squeeze(np.array(all_predictions)))
 
 
 #spoofs in low-level noise peaks
-def add_noise(peaks, amount):
-    first_pass = True
+def add_noise(peaks, amount): 
+    rvs = stats.norm(loc=0.10, scale=0.05).rvs
+    noisy_data = np.zeros((peaks.shape[0], peaks.shape[1]), dtype=float)
+    print(noisy_data.shape)
+    for count, peak in enumerate(peaks): 
+        noise = sp.random(1, 1000, density = amount, data_rvs=rvs)
+        pad = np.zeros((1, 1000))
+        noise = sp.hstack((noise,pad)).toarray()
+        noisy_data[count] = peak + noise
     
-    #loc = mean scal = std dev
-    rvs = stats.norm(loc=0.10, scale=0.05).rvs 
-    noise = sp.random(peaks.shape[0], 1000, density = amount, data_rvs=rvs)
-    pad = np.zeros((peaks.shape[0], 1000))
-    noise = sp.hstack((noise,pad))
-   
-    noisy_data = peaks + noise
-
-    """
-    #adding noise to each spectra in the dataset
-    for count,peak in enumerate(peaks):
-        #define some noise parameters where param 1 is mean and param 2 is stdev
-        noise = sp.random(peaks.shape[1], peaks.shape[0], density = 0.01) 
-        new_signal = peak + noise
-        
-        
-        if first_pass is False:
-            noisy_data = np.vstack((noisy_data, new_signal))
-        if first_pass is True:
-            noisy_data = new_signal
-            first_pass = False
-        #print(noisy_data.shape)
-    """
+    print(noisy_data.shape)
     return(noisy_data)
 
 #if the data needs to be collpased and normalized makes 2000 bins
 #normalizes to 1 and filters out signals below 0.05
 def bin_reduce_normalize(peaks, reduce=False):
-    first_pass = True
+    
     
     for count, item in enumerate(peaks):
         item = np.array(item)
@@ -196,29 +259,37 @@ def bin_reduce_normalize(peaks, reduce=False):
         if np.count_nonzero(item) == 0:
             continue
         peaks[count] = item
-        """
-        if first_pass is False:
-            new_peaks = np.vstack((new_peaks,item))
-
-        if first_pass is True:
-            new_peaks = item
-            first_pass = False
-        """
     return(peaks)
 
-#load and retrun hdf5 dataset
-def load_data(dataset_name):
+#load and retrun hdf5 dataset, part or whole
+def load_data(dataset_name, num_used_spectra=None):
     hf = h5py.File(dataset_name, 'r')
-    high_dset = hf.get('lib_spectra').value[:2000]
+    if num_used_spectra != None:
+        high_dset = hf.get('lib_spectra').value[:num_used_spectra]
+    else:
+        high_dset = hf.get('lib_spectra').value
     return(high_dset)
 
 def main():
+    #the number of library spectra to use for simulation
+    num_used_spectra = 10000
+    
+    #name of where library spectra are stored/binned
+    dataset_1 = 'lib_spectra.hdf5'
+
+    #name of the model to use to denoise
+    model_name = '../models/conv1d/conv1d_42.h5'
+    
+    
     #load the hdf5 dataset to test on
-    high_peaks = load_data(DATASET_1) 
-  
+    high_peaks = load_data(dataset_1) 
+      
     #reduce peaks and normalize
     high_peaks = bin_reduce_normalize(high_peaks)
+    print(high_peaks.shape)
 
+
+    """
     #distribution(high_peaks)
     first_pass = True
     #add noise into the dataset of choice
@@ -231,8 +302,7 @@ def main():
         from sklearn.preprocessing import normalize
         
         #we need to re-norm to l2 prior to using model
-        for i in range(0, len(noisy_data)): 
-            noisy_data[i] = normalize(noisy_data[i], norm='l2')
+        noisy_data = normalize(noisy_data, norm='l2')
       
          
         #attempt to denoise the noisy data
@@ -250,11 +320,15 @@ def main():
             final_noise = noisy_data
             final_predicted = predicted_peaks
             first_pass = False
-
-
+    """
+    
+    noisy = np.load('noise_added.npy')
+    noisy = normalize(noisy, norm='l2')
+    predicted_peaks = denoise(noisy)
+    #predicted_peaks = bin_reduce_normalize(predicted_peaks)
     #save the prediction for analysis
-    np.save('./predictions_spoof_master_2.npy', final_predicted)
-    np.save('./noisy_peak_spoof_master_2.npy', final_noise)
+    np.save('./predictions.npy', predicted_peaks)
+    #np.save('./noisy_peak_spoof_master_1_10000.npy', final_noise)
 
     #load already saved data for analysis
     #predicted_peaks =  np.load('./predictions_spoof.npy')
