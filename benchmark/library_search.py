@@ -437,7 +437,23 @@ def filter_data(data, ccms_list):
 
 def main():
     """
-    
+    Options & Outputs:
+        make_hdf5_lib (bool) : if true, this will create and write a new hdf5 file
+        containing binned, normalized, and lowest-level noise removed data from all
+        library spectra meeting the search criteria defined in function extract_library_spectra
+        along with a text file indicating the order of the ccms ids in the hdf5
+
+        need_full_data (bool) : if true, will fetch all information on all 
+        library spectra in a list of dictionaries from GNPS
+
+        load_analyze_msreduce_data (bool) : if true, this will attempt to load
+        noisy, original, and msredcue processed data from 3 hdf5 files, and create figures
+        representing 1) the cosine distributions of these data alongside the autoencoder data
+        2) boxplots showing the improvment in cosine score for both these data and autoencoder
+        data (seperate plots) and 3) distibutions showing the number of peaks in the original
+        spectra should msreduce have failed (further documented in spoof_noise_recovery.py
+        
+
     Function has several possible use cases, denoted by the boolean expressions.
 
     """
@@ -448,7 +464,8 @@ def main():
     prepare_denoised_mgf = False
     make_cosine_plot = False
     make_mirror_plot = False
-    
+    load_lib_from_hdf5 = False
+    creat_mgfs_lib_search = False
     mirror_plot_top = 0
     mirror_plot_bottom = 0
 
@@ -465,11 +482,12 @@ def main():
     
     if need_full_data:
         data = download_library_spectra()
-    
-    #read the library data into memory
-    lib_data = read_hdf5(name, num_used_spectra) 
-    lib_data = bin_reduce_normalize(lib_data)
-    final_lib = lib_data
+
+    if load_lib_from_hdf5:
+        #read the library data into memory
+        lib_data = read_hdf5(name, num_used_spectra) 
+        lib_data = bin_reduce_normalize(lib_data)
+        final_lib = lib_data
 
     for i in range(1,20):
         final_lib = np.concatenate((final_lib, lib_data))
@@ -523,27 +541,28 @@ def main():
      
     #mirror_plots(noisy_peaks[4], final_lib[4].T) 
     #sys.exit(0)
-    #print(1-cosine(final_lib[1155], denoised_data[1155].T))
-    #cosine_score(denoised_data, final_lib, noisy_peaks, ccms_list)
-    print(og_msr.shape) 
-    cosine_score(denoised_data, final_lib, noisy_peaks, noisy, msr, og_msr)
-    sys.exit() 
-    #special_mirror_plots(spectra_1, mz_1, spectra_2)        
-    #print("Before reformatting mgf")    
+    
+    
+    if make_cosine_plot and not load_analyze_msreduce_data:
+        cosine_score(denoised_data, final_lib, noisy_peaks)
+    if make_cosine_plot and load_analyze_msreduce_data: 
+        cosine_score(denoised_data, final_lib, noisy_peaks, noisy, msr, og_msr)
+     
+         
     #data = filter_data(data, og_ccms)
     #print(len(data))
     #son_string = json.dumps(data)
-    
-     
+
     
     with open('dats.json', 'r') as json_file:
         data = json.load(json_file)
     data = ast.literal_eval(data)
     
-    #takes the original data, the data and the spectra id number and formats an mgf for library search
-    #reformat_mgf(final_lib, data, ccms_list, 'lib_data_42.5')
-    #reformat_mgf(denoised_data, data, ccms_list, 'denoised_42.5')
-    #reformat_mgf(noisy_peaks, data, ccms_list, 'noisy_42.5')
+    if create_mgfs_lib_search:
+        #takes the original data, the data and the spectra id number and formats an mgf for library search
+        reformat_mgf(final_lib, data, ccms_list, 'lib_data_42.5')
+        reformat_mgf(denoised_data, data, ccms_list, 'denoised_42.5')
+        reformat_mgf(noisy_peaks, data, ccms_list, 'noisy_42.5')
     
 
 if __name__ == "__main__":
