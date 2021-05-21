@@ -214,6 +214,10 @@ def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6
     """
     ax = sns.boxplot(x=label, y=val, order=["0.80-0.85", "0.85-0.90","0.90-0.95", "0.95-1.0"], palette="Purples")
     #ax = sns.boxplot(x=label, y=val, order=["0.5-0.6", "0.6-0.7", "0.7-0.8","0.8-0.9", "0.9-0.98"], palette="Purples")
+    ax2 = plt.axes() 
+    ax2.set_ylabel('Cosine Improvement')
+    ax2.set_xlabel('Low - High Cosine Score')
+    ax2.set_title('Improvement in Cosine Score Based on Original Cosine Score')
     plt.axhline(y=0, color='orange') #horizontal line to mark zero
     plt.show()
     plt.close()
