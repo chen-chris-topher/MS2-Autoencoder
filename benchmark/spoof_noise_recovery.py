@@ -6,7 +6,7 @@ number of peaks successfully recovered and peaks
 missed in the denoising process
 
 also contains functions for mirror plotting
-and cosine distribution visualization which are
+and cosine distribution/boxplot visualizations which are
 called by other scripts
 
 """
@@ -153,7 +153,7 @@ def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6
         hypothesis that msreduce over-desnoised spectra, so those starting with lower numbers
         of peaks will have ALL peaks removed.
 
-        Proven correct.
+        Substantiated.
         """
         fig = plt.figure(figsize=(10,6))
         sns.set_style("whitegrid")
@@ -207,26 +207,43 @@ def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6
     """
     Figure Description
     ------------------
-
+    Figure sorts the original cosine values into a discrete number of levels, and then plots
+    the improvment in cosine score as a boxplot for that level. Meant to test the hypthesis that 
+    data pairs that start with lower cosine scores show more improvement. 
+    Substantiated. 
     """
     ax = sns.boxplot(x=label, y=val, order=["0.80-0.85", "0.85-0.90","0.90-0.95", "0.95-1.0"], palette="Purples")
-    plt.axhline(y=0, color='orange') #horizontal line to mark zero
     #ax = sns.boxplot(x=label, y=val, order=["0.5-0.6", "0.6-0.7", "0.7-0.8","0.8-0.9", "0.9-0.98"], palette="Purples")
+    plt.axhline(y=0, color='orange') #horizontal line to mark zero
     plt.show()
     plt.close()
+
+
+    """
+    Figure Description
+    ------------------
+    Figure shows the difference in cosine low-high and cosine high-predicted
+    by plotting these thing as a distribution. If the msreduce data is included, it will
+    add those distributions to the plot. Meant to test the hypothesis that the predictions
+    look more similar to our high quality data than the low quality.
+    """
 
     fig = plt.figure(figsize=(10,6))
     sns.set_style("whitegrid")
     
+    #the lines the high/predicted
     sns.distplot(all_cos_scores, color = 'orange', hist=False)
+    
+    #this ones the low/high
     sns.distplot(side_cos, color = 'purple', hist = False)
     
+    #execute if msreduce data included
     if peaks_4 is not None:
         sns.distplot(msr_cos, color ='blue', hist=False, norm_hist=True)
+        #if we want to also show the noisy/original (low/high) pairing for msreduce
         #sns.distplot(og_noisy, color= 'darkgreen', hist=False)
     
-    ax2 = plt.axes()
-    
+    ax2 = plt.axes() 
     ax2.set_ylabel('Distribution')
     ax2.set_xlabel('Cosine Score')
     ax2.set_title('Recovery of Spetcra after Adding Noise')
@@ -237,13 +254,27 @@ def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6
         fig.legend(labels=['Predicted Autoencoder vs. Original Spectra','Noisy Autoencoder vs. Original Spectra', 'Predicted MSREDUCE vs. Original Spectra'])
     else:
         fig.legend(labels=['Predicted vs. Original','Noisy vs. Original'])
+    
     plt.show()
+    plt.close()
 
 #loads model and predicts on the test dataset
 def denoise(peaks):
+    """
+    Attributes
+    ---------
+    peaks : numpy matrix
+        the data matrix to be denoised
+    
+    all_predictions : numpy matrix
+        returned data after being denoised by autoencoder model
+    
+    """
+
     from tensorflow.keras import models
 
     model = models.load_model(model_name)
+    
     all_predictions = []
     batch_size = 1
     i = 0
@@ -253,42 +284,61 @@ def denoise(peaks):
         prediction = model.predict(test_data, batch_size=batch_size)
         i += batch_size
         all_predictions.append(prediction)
-        if i % 1000 == 0:
-            print(i)
+    
     return(np.squeeze(np.array(all_predictions)))
-
 
 #spoofs in low-level noise peaks
 def add_noise(peaks, amount): 
+    """
+    Attributes
+    ----------
+    peaks : numpy matrix
+        the data to add noise to
+    amount : float
+        the number of noise peaks to be added per sample (vector)
+        to the peaks when multipled by 1000
+
+    Function generates noise based on passed parameter for binned values
+    between 0-1000 (m/z) and adds it on a samples by sample basis to the
+    data matrix. This is meant to simulate chemical noise.
+    """
+    
+    #defines the distibution of the noise used mean = 0.10 stdev = 0.05
     rvs = stats.norm(loc=0.10, scale=0.05).rvs
+
     noisy_data = np.zeros((peaks.shape[0], peaks.shape[1]), dtype=float)
-    print(noisy_data.shape)
+    
     for count, peak in enumerate(peaks): 
+        #generate sparse random noise
         noise = sp.random(1, 1000, density = amount, data_rvs=rvs)
         pad = np.zeros((1, 1000))
         noise = sp.hstack((noise,pad)).toarray()
         noisy_data[count] = peak + noise
     
-    print(noisy_data.shape)
     return(noisy_data)
 
-#if the data needs to be collpased and normalized makes 2000 bins
-#normalizes to 1 and filters out signals below 0.05
-def bin_reduce_normalize(peaks, reduce=False):
-    
-    
+#normalize data to base-peak value, drop lowest level noise
+def bin_reduce_normalize(peaks):
+    """
+    Attributes
+    ----------
+    peaks : numpy matrix, or other matrix 
+        the matrix to be normalized
+
+
+    This function normalizes data in matrix from - every sample (vector)
+    is normalized such that the highest value is 1 and everything scales
+    around it. Values below 0.05 are set to 0.0. 
+    """
+   
     for count, item in enumerate(peaks):
         item = np.array(item)
         item = np.squeeze(item)
-        
-        if reduce:
-            item = np.add.reduceat(item, np.arange(0, item.shape[0], 100)) 
-        
+         
         max_val = np.amax(item, axis=0)
              
         if max_val == 0:
             continue 
-
         
         item = np.true_divide(item, max_val)
         
@@ -297,11 +347,23 @@ def bin_reduce_normalize(peaks, reduce=False):
         if np.count_nonzero(item) == 0:
             continue
         peaks[count] = item
+    
     return(peaks)
 
 #load and retrun hdf5 dataset, part or whole
 def load_data(dataset_name, num_used_spectra=None):
+    """
+    Attributes
+    ----------
+    dataset_name : str
+        name of the hdf5 dataset to load and use, contains library spectra
+    
+    num_used_spectra : int, optional
+        number of spectra to load from the hdf5, default is all
+    """
+    
     hf = h5py.File(dataset_name, 'r')
+    
     if num_used_spectra != None:
         high_dset = hf.get('lib_spectra').value[:num_used_spectra]
     else:
@@ -309,6 +371,19 @@ def load_data(dataset_name, num_used_spectra=None):
     return(high_dset)
 
 def main():
+    """
+    This function will do the following.
+    1. Load library spectra that have been pre-selected and processed.
+    2. Normalize and remove lowest-level noise (below 5% of the base peak)
+    3. Systematically add in various levels of noise as defined by range_val
+    4. Re-normalize using L2. This is important because the model is trained
+    using L2 normalized data, and we need to re-normalize after adding in noise.
+    5. Using model defined in model_name to predict spectra.
+    6. Re-normalize all predicted and noisy data to the base-peak, just to make analysis
+    easier to troubleshoot downstream.
+    7. Save all noisy (final_noise) and all predicted (final_predicted) data to numpy arrays. 
+    """
+
     #the number of library spectra to use for simulation
     num_used_spectra = 10000
     
@@ -320,18 +395,16 @@ def main():
     
     
     #load the hdf5 dataset to test on
-    high_peaks = load_data(dataset_1) 
+    high_peaks = load_data(dataset_1, num_used_spectra) 
       
     #reduce peaks and normalize
     high_peaks = bin_reduce_normalize(high_peaks)
-    print(high_peaks.shape)
-
-
-    """
-    #distribution(high_peaks)
+   
     first_pass = True
-    #add noise into the dataset of choice
+    
+    #the range of # of noise peaks to be added to the data
     range_val = range(1,21)
+    
     for amount in range_val:
         print(amount/1000)
         amount = amount / 1000
@@ -345,9 +418,9 @@ def main():
          
         #attempt to denoise the noisy data
         predicted_peaks = denoise(noisy_data)
+
+        #renormalize predictions and noisy data prior to saving
         predicted_peaks = bin_reduce_normalize(predicted_peaks)    
-        
-        #predicted_peaks = bin_reduce_normalize(predicted_peaks)
         noisy_data = bin_reduce_normalize(noisy_data)
     
         if first_pass is False:
@@ -358,35 +431,9 @@ def main():
             final_noise = noisy_data
             final_predicted = predicted_peaks
             first_pass = False
-    """
-    
-    noisy = np.load('noise_added.npy')
-    noisy = normalize(noisy, norm='l2')
-    predicted_peaks = denoise(noisy)
-    #predicted_peaks = bin_reduce_normalize(predicted_peaks)
-    #save the prediction for analysis
-    np.save('./predictions.npy', predicted_peaks)
-    #np.save('./noisy_peak_spoof_master_1_10000.npy', final_noise)
-
-    #load already saved data for analysis
-    #predicted_peaks =  np.load('./predictions_spoof.npy')
-    #predicted_peaks = bin_reduce_normalize(predicted_peaks) 
-    
-    
-    #load noisy data
-    #noisy_peaks = np.load('./noisy_peak_spoof.npy')
-    #cosine_score(predicted_peaks, high_peaks, noisy_peaks)
-
-
-    #print(noisy_peaks.shape)
-    #print(predicted_peaks.shape)
-    #print(high_peaks.shape)
-
-    #cosine_score(high_peaks, predicted_peaks)
-    
-    #print(1-cosine(noisy_peaks[0], high_peaks[0]))
-    #print(1-cosine(predicted_peaks[0], high_peaks[0]))
-    #mirror_plots(np.squeeze(noisy_peaks[6]), predicted_peaks[6])
+      
+    np.save('./predictions_spoof_master_1_10000.npy', final_predicted)
+    np.save('./noisy_peak_spoof_master_1_10000.npy', final_noise)
 
 
 if __name__ == "__main__":
