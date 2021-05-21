@@ -413,8 +413,6 @@ def main():
         print(amount/1000)
         amount = amount / 1000
         noisy_data = add_noise(high_peaks, amount)
-         
-        from sklearn.preprocessing import normalize
         
         #we need to re-norm to l2 prior to using model
         noisy_data = normalize(noisy_data, norm='l2')
