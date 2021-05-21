@@ -1,8 +1,14 @@
 """
+
 code takes sample datasets, spoofs in low level
 random noise, then tries to denoise. calculates 
 number of peaks successfully recovered and peaks
 missed in the denoising process
+
+also contains functions for mirror plotting
+and cosine distribution visualization which are
+called by other scripts
+
 """
 
 import os 
@@ -18,23 +24,6 @@ from sklearn.preprocessing import normalize
 
 #set seed for reproducibility
 random.seed(10)
-
-#define a custom noise distribution
-def distribution(peaks):
-    import seaborn as sns
-    
-    mz = np.arange(0,2000).tolist()
-    total = [0.0] * 2000
-
-    for item in peaks:
-        item[item > 0.0] = 1
-        total = [x + y for x,y in zip(total, item)]
-    print(total)
-    #total_max = np.max(total)
-    #total = np.true_divide(total, peaks.shape[0])
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax = sns.scatterplot(mz, total)
-    plt.show()
 
 #takes two spectra and produces mirror plots
 def mirror_plots(spectra_1, spectra_2, troubleshoot=False):
@@ -84,47 +73,88 @@ def mirror_plots(spectra_1, spectra_2, troubleshoot=False):
     sup.mirror(spectrum_top, spectrum_bottom, ax=ax)
     plt.show()
 
-#calculate the cosine score of reocovered data versus original
-#pre, actual, noisy
-def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6 = None):
+#the visualization of cosine distributions and boxplots for predicted, real, and noisy data
+def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6 =None):
     """
     Attributes
     ---------
+    peaks_1 : array-like, dimension (n, 2000)
+        matrix representing predictions, masses binned 0-2000
+    
+    peaks_2 : array-like, dimension (n, 2000)
+        matrix representing original/ground truth data, masses binned 0-2000
 
+    peaks_3: array-like, dimension (n, 2000)
+        matrix representing noisy data, masses binned 0-2000
+    
+    peaks_4 : array-like, dimension (n, 2000), optional
+        matrix representing predictions, masses binned 0-2000
+        if passed will plot additional distributions, intended
+        for plotting msreduce data alongside autoencoder data
 
+    peaks_5 : array-like, dimension (n, 2000), optional
+        matrix representing original/ground truth data, masses binned 0-2000
+        if passed will plot additional distributions, intended
+        for plotting msreduce data alongside autoencoder data
+
+    peaks_6: array-like, dimension (n, 2000), optional
+        matrix representing noisy data, masses binned 0-2000
+        if passed will plot additional distributions, intended
+        for plotting msreduce data alongside autoencoder data
 
     """
-    
-    
+        
     import seaborn as sns
-    print(peaks_1.shape)
-    print(peaks_2.shape)
-    print(peaks_3.shape)
+    #record cosine scores between prediction/high quality data
     all_cos_scores = []
+
+    #record cosine scores between low/high quality data
     side_cos = []
+    
+    #used for categorizing data to make boxplots
     label = []
+    #value associated with category in boxplots
     val = []
    
-
-    #noisy, predicted, original
-    if peaks_4 is not None:
-        print(peaks_4.shape)
-        print(peaks_5.shape)
-        print(peaks_6.shape)
+    #if we have the additional data, we will plot additional visualizations
+    if peaks_4 is not None and peaks_5 is not None and peaks_6 is not None:
+        if peaks_4.shape != peaks_5.shape != peaks_6.shape:
+            print(peaks_4.shape)
+            print(peaks_5.shape)
+            print(peaks_6.shape)
+        
+        #store cosine between msreduce processed data and original data
         msr_cos = []
+        #store cosine between original and noisy data
         og_noisy = []
         
-        failed = []
+        #count number of peaks in original data if we failed to process via msreduce
         og_failed_peaks = []
+        #count number of peaks in original data if we processed via msreduce
         og_success_peaks = []
+
         for count,(a,b,c) in enumerate(zip(peaks_4, peaks_5, peaks_6)): 
+            #this executes if msreduce failed to process the sample (removed all peaks)
             if np.max(b) == 0:
                 og_failed_peaks.append(np.count_nonzero(c))
-                msr_cos.append(1-cosine(c,b))
-                og_noisy.append(1-cosine(a,c))
+                                
             else:
                 og_success_peaks.append(np.count_nonzero(c))
-            
+                msr_cos.append(1-cosine(c,b)) #we can only calculate cosine if a vector has nonzero values
+
+            og_noisy.append(1-cosine(a,c))
+        
+        """
+        Figure Description
+        ------------------
+        Figure is a distribution plot designed to analyze the origin of msreduce failure.
+        When msreduce succeeds, we count the number of peaks in the original spectra, and plot
+        is as a distribution, when it fails (removes all peaks). This is meant to test the 
+        hypothesis that msreduce over-desnoised spectra, so those starting with lower numbers
+        of peaks will have ALL peaks removed.
+
+        Proven correct.
+        """
         fig = plt.figure(figsize=(10,6))
         sns.set_style("whitegrid")
         sns.distplot(og_failed_peaks, color='forestgreen', hist=False)
@@ -137,14 +167,16 @@ def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6
         plt.show()
         plt.close()
         
-    
-    #predicted, original,noisy
     for count, (peak1, peak2, peak3) in enumerate(zip(peaks_1, peaks_2, peaks_3)):
+        #cosine score between the "low" quality and "high" quality data
         low_high_cos = 1 - cosine(peak2, peak3)
+        #cosine score between predictions and "high" quality data
         pre_high_cos = 1 - cosine(peak1, peak2)
-
+        
         all_cos_scores.append(pre_high_cos)
         side_cos.append(low_high_cos)
+        
+        #difference in labeling for boxplots
         """
         if low_high_cos >= 0.5 and low_high_cos < 0.6:
             label.append('0.5-0.6')
@@ -171,11 +203,17 @@ def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6
             continue
         
         val.append(pre_high_cos-low_high_cos)
+    
+    """
+    Figure Description
+    ------------------
+
+    """
     ax = sns.boxplot(x=label, y=val, order=["0.80-0.85", "0.85-0.90","0.90-0.95", "0.95-1.0"], palette="Purples")
-    plt.axhline(y=0, color='orange')
+    plt.axhline(y=0, color='orange') #horizontal line to mark zero
     #ax = sns.boxplot(x=label, y=val, order=["0.5-0.6", "0.6-0.7", "0.7-0.8","0.8-0.9", "0.9-0.98"], palette="Purples")
     plt.show()
-    plt.clf()
+    plt.close()
 
     fig = plt.figure(figsize=(10,6))
     sns.set_style("whitegrid")
