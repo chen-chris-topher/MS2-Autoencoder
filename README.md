@@ -11,20 +11,28 @@ MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is 
 * [keras](https://keras.io/) [autoencoder tutorial](https://blog.keras.io/building-autoencoders-in-keras.html)
 * [tensorflow](https://www.tensorflow.org/install/gpu) ([tensorflow-gpu](https://www.tensorflow.org/install/gpu) or [tensorflow](https://www.tensorflow.org/install)*)
   * *tensorflow-gpu worked on version 1.14 with cudnn version 10.0
-  * *tensorflow-gpu 2.2 is what I currenlty use
-## Structure
-1. Extract mzxml/mzml files for MS2 data
-2. Stitch all extracted data files (.npz) into HDF5 file (.hdf5)
-3. Train autoencoder, deep autoencoder, convolutional neural network,... variational autoencoder, LSTM
-4. Evaluate and predict test data on models
-5. Achieve spectra upscaling/denoising
+  * *tensorflow-gpu 2.2 is what I currently use
 
-### 1. Extract mzxml
-1. In MS2-Autoencoder/bin/**main.py** import extract_mzxml as em
-2. The else statement in **main.py** is the entire top to bottom flow of mzxml data extraction
-3. This step should be run on the cluster with nohup and NextFlow to gather all of the data
-4. The Makefile includes functions (instructions) for NextFlow to run main.py on all QExactive data on GNPS(Nov/2019)
-  
+## Structure
+
+
+### 1. Gather and Extract Data
+1. Generate list of elible spectra
+    1. Download the file from this link (current use positive QE data)
+2. Get spectra by running a python script here
+    1. Change the parameters for the number of spectra you want to download here
+        * It's not realistic to download all spectra at once for memory reasons, I tend to do 4k
+        at a time
+        * This is the extraction bottleneck
+3. In MS2-Autoencoder/bin/**main_optimized.py** import extract_mzxml as em
+    1. Change the config file to fit needs here
+    2. Make sure the location of the input/output is correct here
+    3. If you would like to record the filename/scan number being used you need to modify this line
+        * There are a bunch of paramters you can set to output different files, most of them aren't helpful
+        unless you think the code is messed up
+4. Run nextflow and watch data extract
+    1. nextflow run extract_mzxml.nf -c cluster.config
+        * The work folder gets large, in between runs it's helpful to delete it        
 ### 2. Stitch .npz into .hdf5
 1. Use SCP to transfer extracted outdirs from cluster to local (advised that .json files are *rm -r* from outdir)
     * only **ready_array2.npz** or a .npz file is needed for stitching
@@ -46,5 +54,30 @@ MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is 
 1. Jupyter/keras load validate.ipynb is the Jupyter Notebook for loading models and visualizating predictions
 2. Models prediction function is built on tensorflow-gpu with gpu memory allocation and session declaration
 
-### 5. Spectra denoising
-1. Hopefully cosine proximity is closer to 1.0 than 0.0
+### Additional Downstream Testing
+Visualizing the difference between predictions and validation data cosine scores.
+
+### Spiking in Noise and Recovering Figures & Analysis
+1. Cosine Distribution
+2. Boxplots
+3. Percent of Noise Recovered / Removed
+4. Barplot on Relative Success
+
+### SIRIUS Attempt (incomplete)
+1. Running Sirius in Bulk
+2. Analyzing Sirius Results
+
+### MSREDUCE Comparison
+1. Cosine Distribution
+2. Boxplots
+
+### Validation Data Analysis
+1. Learning Curve Generation
+2. Cosine Hex Plot Generation
+3. Boxplot Generation
+4. Viewing Model Structure
+5. PCA of Data (least helpful)
+
+
+
+
