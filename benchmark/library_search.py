@@ -1,6 +1,3 @@
-"""
-
-"""
 from spoof_noise_recovery import denoise, add_noise, mirror_plots, cosine_score, bin_reduce_normalize
 
 import sys
@@ -100,7 +97,7 @@ def download_library_spectra():
     data = response.json()
     return(data)
 
-def extract_library_spectra(data):
+def extract_library_spectra(data, ccms_exclusion):
     """
     Parameters:
         data (list) : list of dictionaries representing all library
@@ -115,8 +112,14 @@ def extract_library_spectra(data):
     
     #loop over entire library
     for lib_entry in data: 
-        if (lib_entry['Instrument'] == 'Orbitrap' or lib_entry['Instrument'] in instrument) and (lib_entry['Ion_Mode'] in mode):     
+        if (lib_entry['Instrument'] == 'Orbitrap' or lib_entry['Instrument'] in instrument) and (lib_entry['Ion_Mode'] in mode):                 
             ccms_id = lib_entry['spectrum_id']
+            
+            #if we provide an exlcusion list we need the ccms id to not be in it
+            if ccms_exclusion is not None:
+                if ccms_id in ccms_exclusion:
+                    continue
+
             peaks = lib_entry['peaks_json']
             peaks = ast.literal_eval(peaks)
             
@@ -146,7 +149,7 @@ def make_hdf5_file(name):
         dataset = f.create_dataset('lib_spectra', shape=(1, 2000), maxshape=(None, 2000),compression='gzip')
         f.close()
 
-def write_to_hdf5(data, name):
+def write_to_hdf5(data, name, ccms_exclusion=None):
     """
     Parameters :
         data (list) : data downloaded directly from GNPS, a list of dictionary 
@@ -159,8 +162,8 @@ def write_to_hdf5(data, name):
     file. CCMS ids are saved to a text file in the same order.
     """
     lib_id_list = []
- 
-    for binned_intensity, ccms_id in extract_library_spectra(data):
+    
+    for binned_intensity, ccms_id in extract_library_spectra(data, ccms_exclusion):
         if np.isnan(binned_intensity).any():
             continue
         if np.count_nonzero(binned_intensity) == 0:
@@ -203,7 +206,7 @@ def check_file(name):
         print("CCMS ID List Length", len(lines))
 
 def read_hdf5(name, num_used_spectra):
-     """
+    """
     Parameters:
         name (str) : the name of the hdf5 file to test
         
@@ -213,20 +216,23 @@ def read_hdf5(name, num_used_spectra):
         
     Function is used to load hdf5 data into memory.
     """
-
+    
     f = h5py.File(name, 'r')
     data = f.get('lib_spectra').value[:num_used_spectra]
-
     return(data)
 
-def reformat_mgf(data, full_data, ccms_list, paramFilename):
-    print("Reformating mgf")
-    from pyteomics import mgf
+def reformat_mgf(data, full_data, ccms_list, paramFilename): 
+    """
+
+
+    """
+    
+    
     count =1 
     mz_array = range(0,2000)
     spectra_list = []
     pass_num = 0
-    #go trhough the ccms_list one at a time
+    
     for ccms, i_data in zip(ccms_list, data):
         for a in full_data:
             if a['spectrum_id'] == ccms:
@@ -264,7 +270,6 @@ def reformat_mgf(data, full_data, ccms_list, paramFilename):
                             actual_mz = [round(file_mz_array[a],4) for a in intens]
                             og_inten = [round(file_inten_array[a],4) for a in intens]
                             
-                           
                             og_sum = max(og_inten)
                             og_inten_part = [a/og_sum for a in og_inten]
                             
@@ -278,10 +283,7 @@ def reformat_mgf(data, full_data, ccms_list, paramFilename):
                             mz_gen = (number_gen / 10000) + m   
                             new_mz.append(round(mz_gen,4))
                             new_inten.append(i * prec)
-                
-                if ccms == 'CCMSLIB00005885077':
-                    print(new_mz, new_inten)
-                
+               
                 filename = item['source_file'] 
                 mz = item['Precursor_MZ']
                 rt = 0.0
@@ -295,41 +297,31 @@ def reformat_mgf(data, full_data, ccms_list, paramFilename):
                 
                 if count % 1000 == 0:
                     print(count)
-                if count == 95000: 
-                    pass_num += 1
-                    mgf.write(spectra = spectra_list, output = "./%s_%s.mgf" %(paramFilename,pass_num), write_charges = False, use_numpy = True)    
-                    count = 0
-                    spectra_list = []
                 count += 1
-def special_mirror_plots(spectra_1, mz_1, spectra_2):
-    import spectrum_utils.plot as sup
-    import spectrum_utils.spectrum as sus
-    
-    spectra_1 = np.array(spectra_1)
-    spectra_2 = np.array(spectra_2)
 
-    mz_2 = np.arange(0,2000)
-    spectra = []
- 
-    max_val = np.amax(spectra_1, axis=0)
-    spectra_1 = np.true_divide(spectra_1, max_val)
 
-    spectra.append(sus.MsmsSpectrum(identifier=0, precursor_mz=0, precursor_charge=0, mz=mz_1, intensity=spectra_1))
-    spectra.append(sus.MsmsSpectrum(identifier=0, precursor_mz=0, precursor_charge=0, mz=mz_2, intensity=spectra_2))
-    
-    fig, ax = plt.subplots(figsize=(12, 6))
-    spectrum_top, spectrum_bottom = spectra
-    sup.mirror(spectrum_top, spectrum_bottom, ax=ax)
-    plt.show()
-
-def read_ccms():
+    mgf.write(spectra = spectra_list, output = "./%s.mgf" %(paramFilename), write_charges = False, use_numpy = True)    
+                       
+def read_ccms(name):
     ccms_list = []
-    with open('ccms_spectra.txt') as hf:
+    with open(name, 'r') as hf:
         for line in hf:
             ccms_list.append(line.strip()) 
     return(ccms_list)
 
 def count_original_peaks(ccms_list, lib):
+    """
+    Parameters:
+        ccms_list (list) : list of strings with ccms ids for the corresponing
+        library spectra matrix
+
+        lib (list) : the binned (n,2000) matrix representing the library
+        spectra
+
+    The purpose of this function is to count the number of nonzero peaks
+    that occur in libary spectra. Saves in ccms_list order to a csv file.
+    """
+    
     peak_count = []
     for item in lib:
         peak_count.append(np.count_nonzero(item))
@@ -337,8 +329,15 @@ def count_original_peaks(ccms_list, lib):
     df = pd.DataFrame({'peak_count':peak_count})
     df.to_csv("peak_count_1_10000.csv")
 
-def count_added_peaks(ccms_list, lib, noisy):
+def count_added_peaks(lib, noisy, ccms_list=None):
+    """
+    Parameters:
+    
+    """
+    
     import seaborn as sns
+    
+    
     added_peaks = []
     for item1, item2 in zip(lib, noisy):
         item1 = np.count_nonzero(item1)
@@ -455,52 +454,69 @@ def main():
         
 
     Function has several possible use cases, denoted by the boolean expressions.
+    Generally, this code serves three main purposes.
+    1) To generate mgfs for library search for spiked in noise
+    2) To evaluate the results via cosine visualization / mirror plots of library spectra
+    with spiked in noise
+    3) To visualize autoencoder versus msreduce results
 
+    These dual purposes mean that the files for evaulation, will vary.
     """
 
-    make_hdf5_lib = False
+    library_spiked_noise_analysis = False
+    msreduce_analysis = False
+
+    make_hdf5_lib = True 
     need_full_data = False
-    load_analyze_msreduce_data = False
     prepare_denoised_mgf = False
+
+    load_analyze_msreduce_data = False
+    
     make_cosine_plot = False
     make_mirror_plot = False
     load_lib_from_hdf5 = False
-    creat_mgfs_lib_search = False
+    
+    create_mgfs_lib_search = False
     mirror_plot_top = 0
     mirror_plot_bottom = 0
+    filter_data = False
 
-    denoised_data_filename = ''
-    noisy_data_filename = ''
+    #library spikd noise analysis files
+    denoised_data_filename = './lib_specs/predictions_spoof_master_1_10000.npy'
+    noisy_data_filename = './lib_specs/noisy_peak_spoof_master_1_10000.npy'
 
     name = 'lib_spectra.hdf5'
     num_used_spectra = 10000
-
+    
     if make_hdf5_lib:
         make_hdf5_file(name)
+        
+        #this that were identified in training data in lib search
+        ccms_exclusion = pd.read_csv('./lib_search/ccms_unique_lib_search_training.csv')
+        ccms_exclusion_list = ccms_exclusion['SpectrumID'].tolist()
         data = download_library_spectra()
-        write_to_hdf5(data, name)
+        write_to_hdf5(data, name, ccms_exclusion)
     
     if need_full_data:
         data = download_library_spectra()
 
-    if load_lib_from_hdf5:
+    if library_spiked_noise_analysis:
         #read the library data into memory
         lib_data = read_hdf5(name, num_used_spectra) 
         lib_data = bin_reduce_normalize(lib_data)
         final_lib = lib_data
 
-    for i in range(1,20):
-        final_lib = np.concatenate((final_lib, lib_data))
-    
-    ccms_list = []
-    with open('new_ccms_list.txt', 'r') as hf:
-        for line in hf:
-            ccms_list.append(line.strip())
-  
-    #load and normalize all autoencoder related data
-    noisy_peaks = np.load(noisy_data_filename)
-    noisy_peaks = bin_reduce_normalize(noisy_peaks)
-    denoised_data = np.load(denoised_data_filename)
+        for i in range(1,20):
+            final_lib = np.concatenate((final_lib, lib_data))
+        
+        ccms_list = read_ccms('ccms_list.txt')[:num_spectra_used]
+        og_ccms = ccms_list
+        ccms_list = ccms_list * 20
+
+        #load and normalize all autoencoder related data
+        noisy_peaks = np.load(noisy_data_filename)
+        noisy_peaks = bin_reduce_normalize(noisy_peaks)
+        denoised_data = np.load(denoised_data_filename)
     
     if prepare_denoised_mgf:
         mset = set(range(0,2000))
@@ -516,49 +532,40 @@ def main():
         #in case we'd like to save this for future use        
         #np.save('./denoised_processed_data_1_10000.npy', denoised_data)
     
-    if load_msreduce_data: 
+    if msreduce_analysis: 
         msr = np.load('./msr_final.npy')
         noisy = np.load('./noise_added.npy')
         og_msr = np.load('./original.npy')
-    
-    #ccms_list = read_ccms()[:10000]
-    #fetch_molecular_formula(ccms_list, data)
-    
-    #this copy we need
-    og_ccms = ccms_list
+        ccms_list = read_ccms('new_ccms_list.txt')
 
+    #fetch_molecular_formula(ccms_list, data)
     #fetch_compound_name(ccms_list, data)
-     
-   
-    #ccms_list = ccms_list * 20
-    
-    print("CCMS List ", len(ccms_list))
-    
     #count_original_peaks(ccms_list, final_lib)
-    
-    #count_added_peaks(ccms_list, final_lib,noisy_peaks)      
+    #count_added_peaks(final_lib, noisy_peaks, ccms_list)      
     #percent_of_noise_added_removed(final_lib, denoised_data, noisy_peaks)
-     
-    #mirror_plots(noisy_peaks[4], final_lib[4].T) 
-    #sys.exit(0)
     
+    if make_mirror_plot:
+        mirror_plots(noisy_peaks[mirror_plot_top], final_lib[mirror_plot_bottom].T)   
+        mirror_plots(denoised_data[mirror_plot_top], final_lib[mirror_plot_bottom].T)
+   
     
     if make_cosine_plot and not load_analyze_msreduce_data:
         cosine_score(denoised_data, final_lib, noisy_peaks)
     if make_cosine_plot and load_analyze_msreduce_data: 
         cosine_score(denoised_data, final_lib, noisy_peaks, noisy, msr, og_msr)
      
-         
-    #data = filter_data(data, og_ccms)
-    #print(len(data))
-    #son_string = json.dumps(data)
-
-    
-    with open('dats.json', 'r') as json_file:
-        data = json.load(json_file)
-    data = ast.literal_eval(data)
-    
     if create_mgfs_lib_search:
+        #this cuts down on the amount of data iterated when making mgf 
+        if filter_data:
+            data = filter_data(data, og_ccms)
+            json_string = json.dumps(data)
+            with open('filtered_data.json','r') as json_file:
+                json.dumps(json_string, json_file)
+        else:
+            with open('filtered_data.json', 'r') as json_file:
+                data = json.load(json_file)
+            data = ast.literal_eval(data)
+
         #takes the original data, the data and the spectra id number and formats an mgf for library search
         reformat_mgf(final_lib, data, ccms_list, 'lib_data_42.5')
         reformat_mgf(denoised_data, data, ccms_list, 'denoised_42.5')
