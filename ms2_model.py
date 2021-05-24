@@ -169,7 +169,7 @@ def load_history(history_file):
 def model_Conv1D():
     input_scan = Input(shape=(2000,1))    
     init = tf.keras.initializers.Orthogonal(seed=10)
-    act =tf.keras.regularizers.l1(0.000001) 
+    act = tf.keras.regularizers.l1(0.000001) 
 
     #2,000
     hidden_1 = Conv1D(32, (5,), strides = 1, padding='same', kernel_initializer = init)(input_scan)
