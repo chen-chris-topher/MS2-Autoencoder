@@ -127,10 +127,34 @@ def load_np(filename):
     data = np.load(filename)[:300000]
     return(data)
 
-def open_hdf5(target):
+def open_hdf5(target, num_train_specs, upper_bound=None):
+    """
+    Parameters:
+        target (str) : the full path of the hdf5 to be opened
+
+        num_train_specs (int) : the number of spectra used in training
+
+        upper_bound (int) : upper bound of spectra to slice from the hdf5
+    
+    Returns:
+        low_dset (numpy matrix) :
+        high_dset (numpy matrix) :
+
+    This function is designed to open an hdf5 file and slice out the appropraite data
+    from 'low_peaks' and 'high_peaks' dataset for analysis.
+
+    """
+
     hf = h5py.File(target, 'r')
-    low_dset = hf.get('low_peaks')[3300000:3599904]
-    high_dset = hf.get('high_peaks')[3300000:3599904]
+  
+    #if we dont pass an upper bound, take all spectra not used in training
+    if upper_bound is None:
+        low_dset = hf.get('low_peaks')[num_train_specs:]
+        high_dset = hf.get('high_peaks')[num_train_specs:]
+    else:
+        low_dset = hf.get('low_peaks')[num_train_specs:upper_bound]
+        high_dset = hf.get('high_peaks')[num_train_specs:upper_bound]
+
     return(low_dset, high_dset)
 
 def mirror_plot(spec1, spec2):
@@ -255,19 +279,37 @@ def model_summary(model_target):
     model = load_model(model_target)
     print(model.summary())
    
-    for layer in model.layers: print(layer.get_config(), layer.get_weights())
-
+    #for layer in model.layers: print(layer.get_config(), layer.get_weights())
+    
 def main():
+    """
+    Primary use for post-training / predictions data visualization.
+    Paramters:
+        predict_target (str) : the numpy predcitions file path
+
+        hdf5_target (str) : path to the hdf5 file containing the 
+        data on which a prediction was made
+
+        model_target (str) : path to the model being analyzed
+
+        history (str) : path to the .pickle file containing loss
+        and accuracy information for the model
+
+        num_test_specs (int) : the number of spectra used for training/testing
+
+    """
+
     predict_target = './predictions.npy'
     hdf5_target = './shuffle_subset_8.hdf5' 
     model_target = './models/conv1d/conv1d_42.h5'
     history = './models/conv1d/conv1d_42_history.pickle'
+    num_test_specs = 3300000
 
+    #prints model summary and weights, must be done in conda environment
     #model_summary(model_target)
      
     low_spectra, high_spectra = open_hdf5(hdf5_target)
     low_spectra, high_spectra= normalize_data(low_spectra, high_spectra)
-    #low_high_inten_dist(low_spectra, high_spectra) 
     predictions = load_np(predict_target)
     
     first_pass = True
@@ -306,8 +348,6 @@ def main():
 
     spec_num = 0 
     #mirror_plot(low_spectra[spec_num], high_spectra[spec_num])
-    print(1- cosine(low_spectra[spec_num], high_spectra[spec_num]))
-    print(1 - cosine(predictions[spec_num], high_spectra[spec_num]))
 
 if __name__ =="__main__":
     main()
