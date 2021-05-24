@@ -88,19 +88,48 @@ scripts, just things changed in-line.
     * Can also visualize the model summary in this function
     * Can visualize mirror plots by specifying spectra numbers here
 
+### Training Data Composition Analysis
+* Note that this is not a workflow, just a documentation
+1. Ran library search via Proteomics2 on all files contained within the training data
+2. Retrieved task ids into a .csv file './benchmark/lib_search/globals_tasks.tsv'
+3. Opened every result file and compiled a json/csv with unique SpectrumID values by
+running ./benchmark/lib_search/analyze_meta_workflow.py 
+4. Used this csv to filter OUT ccms values for following analyses
+
 ### Spiking in Noise and Recovering Figures & Analysis
-1. Cosine Distribution
-2. Boxplots
-3. Percent of Noise Recovered / Removed
-4. Barplot on Relative Success
+1. Generate an .hdf5 with library spectra (positive mode, binned, QE) by changing this parameter to True
+    * Output is lib_spectra.hdf5 and ccms_spectra.txt
+2. Run spoof_noise_recovery.py to output .npy files with noise added and predcition matrices
+    * Change output file names here and here
+    * Change model name here
+    * Change number of spectra to predict on here
+    * Tensorflow needed to run this script
+
+Note: This is done independtly of msreduce noise workflow, but should be analagous in amount of noise
+added. Meant to be able to do simultaneously.
 
 ### SIRIUS Attempt (incomplete)
 1. Running Sirius in Bulk
 2. Analyzing Sirius Results
 
 ### MSREDUCE Comparison
-1. Cosine Distribution
-2. Boxplots
+1. Generate .dta files by running benchmark/msreduce_format.py
+    * This uses the file 'ccms_spectra.txt', which was generated when the library spectra were binned/downloaded
+    for 'Spiking in Noise and Recovering', to find ccms ids and form them into dta files with between 1-20 peaks
+    of noise spiked in
+    * Make directory dta_files in benchmark folder prior to running
+    * Outputs 1 dta file per ccms id per noise addition and msreduce_dta_files.txt which tracks the ccms ids
+    that actually made it into dta files as sanity check
+2. Move the contents of directory dta_files, msreduce_dta_files.txt, and parse_msreduce_results.py to the MSREDUCE downloaded directory
+    * parse_msreduce_results.py was meant to be run from this directory
+    * Make output_dir and test_file directories in MSREDUCE folder
+3. Run parse_msreduce_results.py to implement msreduce and format the results properly
+    * msreduce_used_files.txt is a sanity check file to make sure things got ran
+    * ms_reduce.npy is a numpy matrix with binned (190000, 2000) results
+    * msreduce_analysis_order.txt is the order in whch the spectra were analyzed/binned
+4. Reformat results by running parse_msredcue_results.py missing_file() and make_figure() functions
+    * Output useable files for autoencoder prediction and visualization
+    * Documented in line in parse_msreduce_results.py and library_search.py
 
 ### Validation Data Analysis
 1. Learning Curve Generation
@@ -109,7 +138,10 @@ scripts, just things changed in-line.
 4. Viewing Model Structure
 5. PCA of Data (least helpful)
 
-### File Location on GNPS
+### Important File Descriptions
+ccms_unique_lib_search_training.csv - The list of unique ccms ids found in library search of training data
+ccms_spectra.txt - The order of the library spectra
+
 1. .hdf5 data file
 2. .mgf's for predicted, noisy, and library spectra
     1. Supporting .tsv and .csv files with annotations, peak counts, and noise counts
