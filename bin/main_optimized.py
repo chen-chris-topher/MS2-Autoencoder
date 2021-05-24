@@ -56,8 +56,7 @@ elif args.match_index_file: #tests the get_match_scans() function
 
 ###NEEDS TO BE CHECKED FOR ACCURACY
 else:
-    match_index_dict, sorted_dict = em.find_MS2(data, directory) #made some adjustments, works as intended 
-    #print(match_index_dict)
+    match_index_dict, sorted_dict = em.find_MS2(data, directory, file) #made some adjustments, works as intended 
     #em.output_file2(match_index_dict, './')    
     print('--- %s seconds runtime ---' %(str(time.time() - start_time))) 
     current_time = time.time() 
@@ -71,21 +70,22 @@ else:
     binned_dict = em.bin_array2(processed_dict) #SO THIS IS THE POINT AT WHICH THINGS BECOME SPARSE
     processed_dict = []
     #em.output_file2(binned_dict, directory, binned=True)
-    #print(binned_dict)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time() 
        
     pairs_list = em.create_pairs(binned_dict)
     binned_dict = []
     #em.output_file2(pairs_list, directory, pairs=True)
-    #print(pairs_list)
+    
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
     
     ordered_list = em.arrange_min_max(pairs_list)
     pairs_list = []
-    #print(ordered_list)
-    #em.output_file2(ordered_list, directory, ordered = True)
+    
+    import copy
+    ol_2 = copy.deepcopy(ordered_list)
+    em.output_file2(ol_2, directory, ordered = True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
    

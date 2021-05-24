@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import h5py
-
+big_listo = []
 def extract_npz(filename):
     file = np.load(filename, allow_pickle=True)
     data = file['arr_0'] 
@@ -68,6 +68,19 @@ def stitch_npz(file_list):
 
     np.savez_compressed('concated_data', big_data)
 
+
+def extra_information(file):
+    import json
+    filename = file.replace('ready_array2.npz','ordered_list2.json')
+    with open(filename, 'r') as hf:
+        data = json.load(hf)
+    for item in data:
+        for a in item:
+            for b in a:
+                filename = b['filename']
+                scan = b['scan']               
+                big_listo.append(filename + ' ' + str(scan))
+
 #hdf5 stitching
 def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
     """
@@ -85,6 +98,7 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
     len_total = 0
     count = 0
     for filename in file_list:
+        extra_information(filename)
         try:
             print('#%r extracting and appending %s to hdf5' %(count, filename))
             data = extract_npz(filename)   
@@ -116,6 +130,9 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
         except:
             print("Failed to reshape data into hdf5")
             pass
+    with open('all_files.txt', 'a') as hf:
+        for line in big_listo:
+            hf.write(line + '\n')
     print('saved all data to %s' % name)
 
 def stitch_hdf5_Conv1D(file_list, norm, name='big_data_conv1d.hdf5'):

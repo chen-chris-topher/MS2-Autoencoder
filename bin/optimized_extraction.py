@@ -346,9 +346,7 @@ def output_file(in_dict, directory, match_index=None, processed=None, binned=Non
         print('saved pairs_list to %s' %filename)
     
     elif ordered == True:
-        print("HERERERERERERERR")
-        print(in_dict)
-        #json = json.dumps(in_dict)
+         #json = json.dumps(in_dict)
         filename = directory + '/ordered_list.json'
         with open(filename, 'w') as output:
             output.write(json)
@@ -387,8 +385,10 @@ def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):
             if len(a) > 0:
                 for b in a:
                     for c in b:
-                        print(c)
-                        c['intensity array'] = c['intensity array'].tolist()
+                        try:
+                            c['intensity array'] = c['intensity array'].tolist()
+                        except:
+                            pass
         json = json.dumps(in_dict)
         filename = directory + '/ordered_list2.json'
         with open(filename, 'w') as output:
