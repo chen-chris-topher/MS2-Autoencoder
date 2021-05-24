@@ -263,7 +263,7 @@ def cosine_score(peaks_1, peaks_2, peaks_3, peaks_4=None, peaks_5 =None, peaks_6
     plt.close()
 
 #loads model and predicts on the test dataset
-def denoise(peaks):
+def denoise(peaks, model_name):
     """
     Attributes
     ---------
@@ -396,8 +396,7 @@ def main():
 
     #name of the model to use to denoise
     model_name = '../models/conv1d/conv1d_42.h5'
-    
-    
+        
     #load the hdf5 dataset to test on
     high_peaks = load_data(dataset_1, num_used_spectra) 
       
@@ -419,7 +418,7 @@ def main():
       
          
         #attempt to denoise the noisy data
-        predicted_peaks = denoise(noisy_data)
+        predicted_peaks = denoise(noisy_data, model_name)
 
         #renormalize predictions and noisy data prior to saving
         predicted_peaks = bin_reduce_normalize(predicted_peaks)    

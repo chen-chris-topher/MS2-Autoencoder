@@ -244,7 +244,7 @@ def model_Conv1D():
     return model
 
   
-def fit_autoencoder(autoencoder, X_data, y_data):    
+def fit_autoencoder(autoencoder, X_data, y_data, num_train_specs):    
     batch_size = 512
     test_size = 32 
     print("Test Size ", test_size)
@@ -263,7 +263,7 @@ def fit_autoencoder(autoencoder, X_data, y_data):
     i = 0
     list_of_indices = []
 
-    while i+batch_size+test_size < 3300000 and i+batch_size+test_size < idx:
+    while i+batch_size+test_size < num_train_specs and i+batch_size+test_size < idx:
         temp_tuple = (i, i+batch_size+test_size)
         list_of_indices.append(temp_tuple)
         i += batch_size+test_size
