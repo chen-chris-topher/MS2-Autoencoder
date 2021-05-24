@@ -56,8 +56,15 @@ script download_extract_repeat.py (https://github.com/laserc/MS2-Autoencoder/blo
         * This means when you run the training, you will specify the lump sum of training / testing in command line
             * IE. Run train_models.py passing 3,000,000 to take that amount from the hdf5 into training
             * Splitting between training / testing happens after and ratio based on sizes set in-line
-4. Trained models are saved as .h5 with architeture and weights and loss and accuracy history are saved in .pickle format
-5. Models training function is built on tensorflow-gpu with gpu memory allocation and session declaration
+3. Code for actually running training is train_models.py
+    * Specify model name to save under and number of spectra to use
+    * Trained models are saved as .h5 with architeture and weights
+    * Loss and accuracy history are saved in .pickle format
+4. Predictions are done by running test_models.py
+    * Specify model name to test 
+    * Specify th number of spectra that were used in the training process,
+    everything else is used to test
+    * Predictions are saved to numpy matrix with _predictions.npy at the end of the model name
 
 ### Some Tensorflow & Cuda Notes
 * Current version use tensorflow-gpu 2.3.0
@@ -68,8 +75,18 @@ script download_extract_repeat.py (https://github.com/laserc/MS2-Autoencoder/blo
 * Can never get rdkit and tensorflow to play nice 
 * Best of luck
 
-### Additional Downstream Testing
+### Downstream Testing
 Visualizing the difference between predictions and validation data cosine scores.
+This represents the bulk of the code, and while this will be a brief overview, a lot
+of this is well-documented in-line. No command line parameters are passed in these
+scripts, just things changed in-line.
+
+### First Pass Prediction Analysis
+1. Run testing_workflow_outputs.py to test/visualize predictions
+    * Specify model target, hdf5 target, prediction target, and loss history in line here
+    * Can use this to visualize the loss/accuracy chart, cosine hex plot and boxplots
+    * Can also visualize the model summary in this function
+    * Can visualize mirror plots by specifying spectra numbers here
 
 ### Spiking in Noise and Recovering Figures & Analysis
 1. Cosine Distribution
