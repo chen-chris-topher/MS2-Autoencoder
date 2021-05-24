@@ -10,41 +10,146 @@ MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is 
 * [h5py](https://pypi.org/project/h5py/)
 * [keras](https://keras.io/) [autoencoder tutorial](https://blog.keras.io/building-autoencoders-in-keras.html)
 * [tensorflow](https://www.tensorflow.org/install/gpu) ([tensorflow-gpu](https://www.tensorflow.org/install/gpu) or [tensorflow](https://www.tensorflow.org/install)*)
-  * *tensorflow-gpu worked on version 1.14 with cudnn version 10.0
-  * *tensorflow-gpu 2.2 is what I currenlty use
-## Structure
-1. Extract mzxml/mzml files for MS2 data
-2. Stitch all extracted data files (.npz) into HDF5 file (.hdf5)
-3. Train autoencoder, deep autoencoder, convolutional neural network,... variational autoencoder, LSTM
-4. Evaluate and predict test data on models
-5. Achieve spectra upscaling/denoising
+* scipy
+* numpy
+* time
 
-### 1. Extract mzxml
-1. In MS2-Autoencoder/bin/**main.py** import extract_mzxml as em
-2. The else statement in **main.py** is the entire top to bottom flow of mzxml data extraction
-3. This step should be run on the cluster with nohup and NextFlow to gather all of the data
-4. The Makefile includes functions (instructions) for NextFlow to run main.py on all QExactive data on GNPS(Nov/2019)
-  
+### 1. Gather and Extract Data
+1. Generate list of elible spectra
+    1. Download the file from this link (current use positive QE data)
+2. Get spectra by running a python script here
+    1. Change the parameters for the number of spectra you want to download here
+        * It's not realistic to download all spectra at once for memory reasons, I tend to do 4k
+        at a time
+        * This is the extraction bottleneck
+3. In MS2-Autoencoder/bin/**main_optimized.py** import extract_mzxml as em
+    1. Change the config file to fit needs here
+    2. Make sure the location of the input/output is correct here
+    3. If you would like to record the filename/scan number being used you need to modify this line
+        * There are a bunch of paramters you can set to output different files, most of them aren't helpful
+        unless you think the code is messed up
+4. Run nextflow and watch data extract
+    1. nextflow run extract_mzxml.nf -c cluster.config
+        * The work folder gets large, in between runs it's helpful to delete it        
+
 ### 2. Stitch .npz into .hdf5
-1. Use SCP to transfer extracted outdirs from cluster to local (advised that .json files are *rm -r* from outdir)
-    * only **ready_array2.npz** or a .npz file is needed for stitching
-2. In MS2-Autoencoder/bin/**processing.py** import concat_hdf5.py as ch5
-3. Specify path to the parent directory of all outdirs, specify name of the data file ('ready_array2.npz')
-4. **processing.py** will concatenate all .npz; it will output two .hdf5 files
-    1. Autoencoder structured dataset
-    2. Convolution neural network 1D structured dataset
-    
-### 3. Train models
-1. Model architecture is outlined in ms2-autoencoder.py, ms2-conv1d.py, ms2-deepautoencoder.py
-2. Generators, training, evaluating, predicting, and all model architectures are in ms2_model.py
-3. In **train_models.py** import ms2_model.py
-4. Trained models are saved as .h5 with architeture and weights
-5. Models training function is built on tensorflow-gpu with gpu memory allocation and session declaration
-6. Model training can be done on local or cluster machine
+1. Run **processing.py**, which  will concatenate all .npz; it will output two files
+    1. Specify path to the parent directory of all outdirs, specify name of the data file ('ready_array2.npz')
+    2. This will output an .hdf5 file containing all data and .txt file containing the filepath and scan number for data tracking
+    3. Note that this will also L2 normalize all data (THIS IS THE WAY WE FEED THE DATA TO THE MODEL)
+        * It's a very easy transition between base-peak and l2 normalization
+        * I used base-peak normalization for data analysis (mirror plots will scale this way anyways, easier to diagnose)
+** If you'd like to do all of the above at the same time, check all the parameters listed, then run 
+script download_extract_repeat.py (https://github.com/laserc/MS2-Autoencoder/blob/chrissys_branch_3/download_extract_repeat.py) 
 
-### 4. Evaluate and Predict models
-1. Jupyter/keras load validate.ipynb is the Jupyter Notebook for loading models and visualizating predictions
-2. Models prediction function is built on tensorflow-gpu with gpu memory allocation and session declaration
+### 3. Shuffle Data
+1. Run shuffle_hdf5.py with the name of the .hdf5 file as a command line parameter
+    1. This will create a new file, with the word "shuffle" before the filename
 
-### 5. Spectra denoising
-1. Hopefully cosine proximity is closer to 1.0 than 0.0
+### 4. Train models
+1. Model architecture is outlined in ms2_model.py starting at this line
+    1. Current implementation is a U-Net
+    2. Change weight initialization here, loss function here, and optimizer/learning rate here
+2. Define the number of epochs, batch size and test size here, here, and here respectively
+    1. Manually set these each time because it's fairly easy and I like to double check it
+    2. TRAINING, VALIDATION, AND TESTING DATA ALL COME FROM THE SAME HDF5 FILE.
+        * This means when you run the training, you will specify the lump sum of training / testing in command line
+            * IE. Run train_models.py passing 3,000,000 to take that amount from the hdf5 into training
+            * Splitting between training / testing happens after and ratio based on sizes set in-line
+3. Code for actually running training is train_models.py
+    * Specify model name to save under and number of spectra to use
+    * Trained models are saved as .h5 with architeture and weights
+    * Loss and accuracy history are saved in .pickle format
+4. Predictions are done by running test_models.py
+    * Specify model name to test 
+    * Specify th number of spectra that were used in the training process,
+    everything else is used to test
+    * Predictions are saved to numpy matrix with _predictions.npy at the end of the model name
+
+### Some Tensorflow & Cuda Notes
+* Current version use tensorflow-gpu 2.3.0
+    * There's a layer in the current model that requires this version or higher (this is the highest conda version)
+* Cuda use is cudatoolkit 10.1
+    * Should also install the correct Nvidia driver
+* Cudnn install might be needed to, depends on your system specifically
+* Can never get rdkit and tensorflow to play nice 
+* Best of luck
+
+### Downstream Testing
+Visualizing the difference between predictions and validation data cosine scores.
+This represents the bulk of the code, and while this will be a brief overview, a lot
+of this is well-documented in-line. No command line parameters are passed in these
+scripts, just things changed in-line.
+
+### First Pass Prediction Analysis
+1. Run testing_workflow_outputs.py to test/visualize predictions
+    * Specify model target, hdf5 target, prediction target, and loss history in line here
+    * Can use this to visualize the loss/accuracy chart, cosine hex plot and boxplots
+    * Can also visualize the model summary in this function
+    * Can visualize mirror plots by specifying spectra numbers here
+
+### Training Data Composition Analysis
+* Note that this is not a workflow, just a documentation
+1. Ran library search via Proteomics2 on all files contained within the training data
+2. Retrieved task ids into a .csv file './benchmark/lib_search/globals_tasks.tsv'
+3. Opened every result file and compiled a json/csv with unique SpectrumID values by
+running ./benchmark/lib_search/analyze_meta_workflow.py 
+4. Used this csv to filter OUT ccms values for following analyses
+
+### Spiking in Noise and Recovering Figures & Analysis
+1. Generate an .hdf5 with library spectra (positive mode, binned, QE) by changing this parameter to True
+    * Output is lib_spectra.hdf5 and ccms_spectra.txt
+2. Run spoof_noise_recovery.py to output .npy files with noise added and predcition matrices
+    * Change output file names here and here
+    * Change model name here
+    * Change number of spectra to predict on here
+    * Tensorflow needed to run this script
+
+Note: This is done independtly of msreduce noise workflow, but should be analagous in amount of noise
+added. Meant to be able to do simultaneously.
+
+### SIRIUS Attempt (incomplete)
+1. Running Sirius in Bulk
+2. Analyzing Sirius Results
+
+### MSREDUCE Comparison
+1. Generate .dta files by running benchmark/msreduce_format.py
+    * This uses the file 'ccms_spectra.txt', which was generated when the library spectra were binned/downloaded
+    for 'Spiking in Noise and Recovering', to find ccms ids and form them into dta files with between 1-20 peaks
+    of noise spiked in
+    * Make directory dta_files in benchmark folder prior to running
+    * Outputs 1 dta file per ccms id per noise addition and msreduce_dta_files.txt which tracks the ccms ids
+    that actually made it into dta files as sanity check
+2. Move the contents of directory dta_files, msreduce_dta_files.txt, and parse_msreduce_results.py to the MSREDUCE downloaded directory
+    * parse_msreduce_results.py was meant to be run from this directory
+    * Make output_dir and test_file directories in MSREDUCE folder
+3. Run parse_msreduce_results.py to implement msreduce and format the results properly
+    * msreduce_used_files.txt is a sanity check file to make sure things got ran
+    * ms_reduce.npy is a numpy matrix with binned (190000, 2000) results
+    * msreduce_analysis_order.txt is the order in whch the spectra were analyzed/binned
+4. Reformat results by running parse_msredcue_results.py missing_file() and make_figure() functions
+    * Output useable files for autoencoder prediction and visualization
+    * Documented in line in parse_msreduce_results.py and library_search.py
+
+### Validation Data Analysis
+1. Learning Curve Generation
+2. Cosine Hex Plot Generation
+3. Boxplot Generation
+4. Viewing Model Structure
+5. PCA of Data (least helpful)
+
+### Important File Descriptions
+ccms_unique_lib_search_training.csv - The list of unique ccms ids found in library search of training data
+ccms_spectra.txt - The order of the library spectra
+
+1. .hdf5 data file
+2. .mgf's for predicted, noisy, and library spectra
+    1. Supporting .tsv and .csv files with annotations, peak counts, and noise counts
+3. Model and model history
+4. .tsv file for libary search for all training/testing/validation data
+5. List of all filenames that fit search criteria (positive mode, QE) in use order
+
+### Task IDs for GNPS Jobs
+predicted - f02720d3e2024f5caa3deba25e73556f
+noisy - 900a609a912e40728d04156a28491841
+library spectra - 90dd734d44e244deb2594cf6f9734784

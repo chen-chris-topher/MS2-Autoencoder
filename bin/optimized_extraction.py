@@ -20,7 +20,7 @@ def find_MS2(data, directory, filename):
     output to a list of indexes of MS2 scans
     with associated information on mz and rt for sorting
     """
-    
+
     mass_tolerance = 0.01
     rt_tolerance = 0.5
 
@@ -29,19 +29,23 @@ def find_MS2(data, directory, filename):
 
     #find and record all possible MS2 information
     for i in range(0, len(data)): #looping over all scans in the file 
-        if data[i]['polarity'] == '+': 
-            if data[i].get('msLevel') == 2: 
-                
+        if data[i]['polarity'] == '+':
+            if data[i].get('msLevel') == 2:
+
                 inten = float(data[i].get('precursorMz')[0]['precursorIntensity'])
                 mz = float(data[i].get('precursorMz')[0].get('precursorMz'))
                 rt = float(data[i].get('retentionTime'))
-                id = int(data[i].get('id'))      
- 
+                id = int(data[i].get('id'))
+
                 mz_array = data[i].get('m/z array').tolist()
                 inten_array = data[i].get('intensity array').tolist()
 
                 return_sort_dict[i] = {'mz': mz, 'rt': rt, 'inten' : inten, 'id':id, 'mz array': mz_array, 'inten array' : inten_array, 'filename':filename}
+<<<<<<< HEAD
                 
+=======
+
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     #find all potential matches, regarless of precursor or overlap 
     for key, item in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True):
         mz1 = item['mz']
@@ -51,18 +55,23 @@ def find_MS2(data, directory, filename):
 
         two_list = []
         redun_check = False
-       
+
         if redun_check is False:
+<<<<<<< HEAD
             for key2, item2 in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True): 
+=======
+            for key2, item2 in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True):
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
                 mz2 = item2['mz']
                 rt2 = item2['rt']
                 prec2 = item2['inten']
-              
+
                 if mz2 < mz1 - mass_tolerance:
                     break
-                    
+
                 #if we get below the target value by the mz tolerance, we're not getting higher
                 if mz2 <= mz1 + mass_tolerance and mz2 >= mz1 - mass_tolerance:
+<<<<<<< HEAD
                     if rt2 <= rt1 + rt_tolerance and rt2 >= rt1 - rt_tolerance:  
                         if float(prec2) >= (float(prec1) * 10):           
                             two_list.append(key2)
@@ -74,23 +83,37 @@ def find_MS2(data, directory, filename):
             #if key in match_index_dict.keys():
                 #print(key, match_index_dict[key])
             
+=======
+                    if rt2 <= rt1 + rt_tolerance and rt2 >= rt1 - rt_tolerance:
+                        if float(prec2) >= (float(prec1) * 10):
+         					two_list.append(key2)
+            if len(two_list) != 0:
+                match_index_dict[key] = two_list
+            redun_check = False
+
+            #if key in match_index_dict.keys():
+                #print(key, match_index_dict[key])
+
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
             #print('%s of %s' %(key, len(return_sort_dict))) 
             #print('Finished search for dict[%s]' %key)
         else:
             redun_check = False
     return (match_index_dict, return_sort_dict)
 
+<<<<<<< HEAD
+=======
 def get_match_scans(sorted_dict, match_index_dict):
     """
     collect the information from the data for the matching molecules
     hierarchical dictionary
     """
     processed_dict = {}
-    
+
     for key in match_index_dict.keys(): #key loops through scans   
         save_key = sorted_dict[key]['id']
-        processed_dict[int(save_key)] = [] 
-        
+        processed_dict[int(save_key)] = []
+
         for index, i in zip(match_index_dict[key], range(0, len(match_index_dict[key]))):
             scan = int(sorted_dict[index]['id'])
             rt = sorted_dict[index]['rt']
@@ -98,14 +121,53 @@ def get_match_scans(sorted_dict, match_index_dict):
             mz = sorted_dict[index]['mz']
             mz_array = sorted_dict[index]['mz array']
             intensity_array = sorted_dict[index]['inten array']
-            
+
             processed_dict[int(save_key)].append({scan:{}})
 
             processed_dict[int(save_key)][i][scan] = {'retentionTime':rt, #retentionTime
                                                 'precursorMz':mz, #precursorMz
                                                 'precursorIntensity':intensity, #precursorIntensity
                                                 'mz array':mz_array, #mz array 
+                                                'intensity array':intensity_array,
+                                                'filename': sorted_dict[index]['filename'],
+                                                'scan': sorted_dict[index]['id']} #intensity array
+    return processed_dict
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
+def get_match_scans(sorted_dict, match_index_dict):
+    """
+    collect the information from the data for the matching molecules
+    hierarchical dictionary
+    """
+    processed_dict = {}
+
+    for key in match_index_dict.keys(): #key loops through scans   
+        save_key = sorted_dict[key]['id']
+<<<<<<< HEAD
+        processed_dict[int(save_key)] = [] 
+        
+=======
+        processed_dict[int(save_key)] = []
+
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
+        for index, i in zip(match_index_dict[key], range(0, len(match_index_dict[key]))):
+            scan = int(sorted_dict[index]['id'])
+            rt = sorted_dict[index]['rt']
+            intensity = sorted_dict[index]['inten']
+            mz = sorted_dict[index]['mz']
+            mz_array = sorted_dict[index]['mz array']
+            intensity_array = sorted_dict[index]['inten array']
+
+            processed_dict[int(save_key)].append({scan:{}})
+
+            processed_dict[int(save_key)][i][scan] = {'retentionTime':rt, #retentionTime
+                                                'precursorMz':mz, #precursorMz
+                                                'precursorIntensity':intensity, #precursorIntensity
+                                                'mz array':mz_array, #mz array 
+<<<<<<< HEAD
                                                 'intensity array':intensity_array, 
+=======
+                                                'intensity array':intensity_array,
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
                                                 'filename': sorted_dict[index]['filename'],
                                                 'scan': sorted_dict[index]['id']} #intensity array
     return processed_dict
@@ -142,7 +204,6 @@ def bin_array(processed_dict):
                                             'mz_intensity array':mz_intensity_array} #intensity array
     print('successfully binned all mz array and intensity array')
     return binned_dict
-
 #use bin_array2() for vectorizing and outputting only the intensity array
 def bin_array2(processed_dict):
     """
@@ -186,30 +247,41 @@ def create_pairs(binned_dict):
     for key in binned_dict.keys(): #looping through all binned MS2 scans
         pairs = []
         for i in range(0, len(binned_dict[key])):
-            for j in range(i+1, len(binned_dict[key])): 
+            for j in range(i+1, len(binned_dict[key])):
                 for scan, scan2 in zip(binned_dict[key][i].keys(), binned_dict[key][j].keys()):
                     thing1 = binned_dict[key][i][scan]['intensity array']
+<<<<<<< HEAD
                     thing2 = binned_dict[key][j][scan2]['intensity array']                    
                     if (np.count_nonzero(thing1) != 0) and (np.count_nonzero(thing2) != 0):
                         low_max = np.max(thing1)
                         high_max = np.max(thing2)
                         
+=======
+                    thing2 = binned_dict[key][j][scan2]['intensity array']
+                    if (np.count_nonzero(thing1) != 0) and (np.count_nonzero(thing2) != 0):
+                        low_max = np.max(thing1)
+                        high_max = np.max(thing2)
+
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
                         low = np.true_divide(thing1, low_max)
                         high = np.true_divide(thing2, high_max)
 
                         low[low < 0.05] = 0.0
                         high[high < 0.05] = 0.0
+<<<<<<< HEAD
                       
+=======
+
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
                         cos = 1 - cosine(low, high)
                         if cos >= 0.5 and cos < 1.0:
                             binned_dict[key][i][scan]['intensity array'] = low
                             binned_dict[key][j][scan2]['intensity array'] = high
                             pairs.append([binned_dict[key][i][scan], binned_dict[key][j][scan2]])
-                            
+
         pairs_list.append(pairs)
     print('successfully created pairs for all matched scans')
     return pairs_list
-
 def arrange_min_max(pairs_list):
     """
     rearrange each match pair so that the smaller precursorIntensity is first
@@ -243,7 +315,7 @@ def convert_to_ready(ordered_list):
     ready_list_2 = []
     ready_array = [] #just needs declaration
     ready_mz = [] #just needs declaration
-    
+
     for i in range(0, len(ordered_list)): #i is at the group/molecule level
         group = []
         for j in range(0, len(ordered_list[i])): #j is at the pairs per molecule level
@@ -254,18 +326,51 @@ def convert_to_ready(ordered_list):
                 intensity = ordered_list[i][j][k].get('precursorIntensity')
                 mz = ordered_list[i][j][k].get('precursorMz')
                 mz_intensity_array = np.asarray(ordered_list[i][j][k].get('mz_intensity array'))
-                
+
                 mz_intensities.append(mz_intensity_array)
                 pairs.append(np.asarray([rt, intensity, mz]))
-        
+
             ready_list.append(np.asarray(pairs))
             ready_list_2.append(np.asarray(mz_intensities))
 
         ready_mz=np.asarray(ready_list_2)
         ready_array = np.asarray(ready_list)
-    
+
     return(ready_array, ready_mz)
 
+#use convert_to_ready() for creating an all inclusive file
+def convert_to_ready(ordered_list):
+    """
+    converts ordered_list into a list of structured arrays
+    without dictionary keys
+    conversion creates a list with all useful information
+    """
+    ready_list = []
+    ready_list_2 = []
+    ready_array = [] #just needs declaration
+    ready_mz = [] #just needs declaration
+
+    for i in range(0, len(ordered_list)): #i is at the group/molecule level
+        group = []
+        for j in range(0, len(ordered_list[i])): #j is at the pairs per molecule level
+            pairs = []
+            mz_intensities =[]
+            for k in range(0 , len(ordered_list[i][j])): #k is at the scan per pair level
+                rt = ordered_list[i][j][k].get('retentionTime')
+                intensity = ordered_list[i][j][k].get('precursorIntensity')
+                mz = ordered_list[i][j][k].get('precursorMz')
+                mz_intensity_array = np.asarray(ordered_list[i][j][k].get('mz_intensity array'))
+
+                mz_intensities.append(mz_intensity_array)
+                pairs.append(np.asarray([rt, intensity, mz]))
+
+            ready_list.append(np.asarray(pairs))
+            ready_list_2.append(np.asarray(mz_intensities))
+
+        ready_mz=np.asarray(ready_list_2)
+        ready_array = np.asarray(ready_list)
+
+    return(ready_array, ready_mz)
 #use convert_to_ready2() for creating a training ready file
 def convert_to_ready2(ordered_list):
     """
@@ -310,7 +415,7 @@ def convert_to_ready3(ordered_list):
     return ready_array
 
 
-def output_file(in_dict, directory, match_index=None, processed=None, binned=None, pairs=None, ordered=None):    
+def output_file(in_dict, directory, match_index=None, processed=None, binned=None, pairs=None, ordered=None):
     """
     output the dictionary from search_MS2_matches, get_match_scans, bin_array, create_pairs, arrange_min_max into files
     outputs .json
@@ -337,14 +442,14 @@ def output_file(in_dict, directory, match_index=None, processed=None, binned=Non
         with open(filename, 'w') as output:
             output.write(json)
         print('saved binned_dict to %s' %filename)
-    
+
     elif pairs == True:
         json = json.dumps(in_dict)
         filename = directory + '/pairs_list.json'
         with open(filename, 'w') as output:
             output.write(json)
         print('saved pairs_list to %s' %filename)
-    
+
     elif ordered == True:
          #json = json.dumps(in_dict)
         filename = directory + '/ordered_list.json'
@@ -358,8 +463,7 @@ def output_file(in_dict, directory, match_index=None, processed=None, binned=Non
         with open(filename, 'w') as output:
             output.write(json)
         print('saved dict to "output.json"')
-
-def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):    
+def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):
     """
     output the dictionary from bin_array2, create_pairs, arrange_min_max into files
     outputs .json
@@ -372,14 +476,14 @@ def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):
         with open(filename, 'w') as output:
             output.write(json)
         print('saved binned_dict to %s' %filename)
-    
+
     elif pairs == True:
         json = json.dumps(in_dict)
         filename = directory + '/pairs_list2.json'
         with open(filename, 'w') as output:
             output.write(json)
         print('saved pairs_list to %s' %filename)
-    
+
     elif ordered == True:
         for a in in_dict:
             if len(a) > 0:
@@ -413,7 +517,7 @@ def output_list(in_list, directory, two=None, ready_mass = None, dict=False):
         filename = directory + '/ready_mass.npz'
         np.savez_compressed(filename, in_list)
         print('saved ready_array to %s' %filename)
-    elif dict == True: 
+    elif dict == True:
         json = json.dumps(in_list)
         filename = directory + '/ready_array_dict.npz'
         with open(filename, 'w') as output:
@@ -422,7 +526,6 @@ def output_list(in_list, directory, two=None, ready_mass = None, dict=False):
         filename = directory + '/ready_array.npz'
         np.savez_compressed(filename, in_list)
         print('saved ready_array to %s' %filename)
-
 def unpack(input_dict):
     """
     unpack a dictionary that has be save in a .json file
@@ -431,3 +534,4 @@ def unpack(input_dict):
     with open(input_dict) as f:
         out_dict = json.load(f)
     return out_dict
+

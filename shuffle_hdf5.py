@@ -1,35 +1,35 @@
 import h5py
 import random
+import argparse
 
-f = h5py.File('shuffle_this.hdf5', 'r')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('hdf5_filename', help='input name of hdf5')
+args = parser.parse_args()
+filename = args.hdf5_filename
+random.seed(10)
+
+f = h5py.File('%s'%filename, 'r')
 low_dset = f['low_peaks']
 high_dset = f['high_peaks']
 
-def shuffle_in_unison(a, b):
-    assert len(a) == len(b)
-    shuffled_a = numpy.empty(a.shape, dtype=a.dtype)
-    shuffled_b = numpy.empty(b.shape, dtype=b.dtype)
-    permutation = numpy.random.permutation(len(a))
-    for old_index, new_index in enumerate(permutation):
-        shuffled_a[new_index] = a[old_index]
-        shuffled_b[new_index] = b[old_index]
-    return shuffled_a, shuffled_b
-
+new_filename_base = filename.replace('.hdf5','')
 
 total_rows = low_dset.shape[0]
 indexes = list(range(0,total_rows))
 random.shuffle(indexes)
 
 #first we just create the file and the dataset
-with h5py.File("shuffled_data.hdf5", "w") as hf:
+with h5py.File("shuffle_%s.hdf5" %new_filename_base, "w") as hf:
     dataset = hf.create_dataset('low_peaks', shape=(0, 2000), maxshape=(None, 2000),compression ='gzip')
     dataset = hf.create_dataset('high_peaks', shape=(0, 2000), maxshape=(None, 2000),compression='gzip')
     hf.close()
 
 len_total = 0
 i_prev = 0
+
 for index in indexes:
-    with h5py.File("shuffled_data.hdf5", "a") as hf:
+    with h5py.File("shuffle_%s.hdf5" %new_filename_base, "a") as hf:
         dataset_low = hf['low_peaks']
         dataset_high = hf['high_peaks']
         
@@ -42,6 +42,8 @@ for index in indexes:
        
         dataset_high.resize((i_curr + 1, 2000))
         dataset_high[i_curr:i_curr + 1, :] = high_dset[index, :]
-
-        print(dataset_low.shape)
+        
+        if dataset_low.shape[0] % 100000 == 0:
+            print("Matrix Size ", dataset_low.shape)
+            print("Percent Compelte ", dataset_low.shape[0]/total_row.shape[0])
 

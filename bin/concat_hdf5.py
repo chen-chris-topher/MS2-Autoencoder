@@ -68,7 +68,10 @@ def stitch_npz(file_list):
 
     np.savez_compressed('concated_data', big_data)
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
 def extra_information(file):
     import json
     filename = file.replace('ready_array2.npz','ordered_list2.json')
@@ -78,7 +81,11 @@ def extra_information(file):
         for a in item:
             for b in a:
                 filename = b['filename']
+<<<<<<< HEAD
                 scan = b['scan']               
+=======
+                scan = b['scan']
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
                 big_listo.append(filename + ' ' + str(scan))
 
 #hdf5 stitching
@@ -130,9 +137,16 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
         except:
             print("Failed to reshape data into hdf5")
             pass
+<<<<<<< HEAD
     with open('all_files.txt', 'a') as hf:
         for line in big_listo:
             hf.write(line + '\n')
+=======
+	with open('all_files.txt', 'a') as hf:
+        for line in big_listo:
+            hf.write(line + '\n')
+
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     print('saved all data to %s' % name)
 
 def stitch_hdf5_Conv1D(file_list, norm, name='big_data_conv1d.hdf5'):
@@ -191,48 +205,3 @@ def get_file_list(path, data_name):
                 file_list.append(os.path.join(path, i, filename))
                 #print(os.path.join(path,filename, i, filename))
     return file_list
-
-def wrangle_additional_data(file_list, name='add_info.hdf5'):
-
-    with h5py.File(name, 'w') as f: #create empty hdf5 file with two datasets
-        dataset = f.create_dataset('low_peaks', shape=(1, 3), maxshape=(None, 3),compression='gzip')
-        dataset = f.create_dataset('high_peaks', shape=(1, 3), maxshape=(None, 3),compression='gzip')
-        f.close()
-
-    i_prev = 0
-    len_total = 0
-    count = 0
-    files = []
-    for filename in file_list:
-        try:
-            print('#%r extracting and appending %s to hdf5' %(count, filename))
-            data = extract_npz(filename)   
-            size = data.shape 
-            i_curr = size[0] + i_prev
-            len_total += i_curr
-            count += 1
-
-            split_data = np.split(data, 2, axis=1) 
-            low_peaks = split_data[0]
-            low_peaks = low_peaks.reshape(len(low_peaks), np.prod(low_peaks.shape[1:]))
-            print(low_peaks.shape)
-            high_peaks = split_data[1]
-            high = high_peaks.reshape(len(high_peaks), np.prod(high_peaks.shape[1:]))
-            print(high_peaks.shape)        
-            with h5py.File(name, 'a') as f:
-                files.extend([filename] * low_peaks.shape[0])
-                dataset = f['low_peaks'] #append to low_peaks dataset                     
-                dataset.resize((len_total, 3))
-                dataset[i_prev:i_curr, :] = low_peaks
-                print("past first resize")
-                dataset = f['high_peaks'] #append to high_peaks dataset
-                dataset.resize((len_total, 3))
-                dataset[i_prev:i_curr, :] = high_peaks
-
-                f.close()
-            i_prev = i_curr
-            print('length at %s' %len_total)
-        except:
-            print("Failed to reshape data into hdf5")
-            pass
-    print('saved all data to %s' % name)

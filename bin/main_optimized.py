@@ -1,3 +1,4 @@
+import copy
 import optimized_extraction as em
 import numpy as np
 import argparse
@@ -52,58 +53,55 @@ elif args.match_index_file: #tests the get_match_scans() function
     processed_dict = em.get_match_scans(data, match_index_dict)
     print('--- %s seconds runtime ---' %(str(time.time() - start_time)))
     em.output_file(processed_dict, directory, processed=True)
-
-
-###NEEDS TO BE CHECKED FOR ACCURACY
 else:
     match_index_dict, sorted_dict = em.find_MS2(data, directory, file) #made some adjustments, works as intended 
     #em.output_file2(match_index_dict, './')    
+<<<<<<< HEAD
     print('--- %s seconds runtime ---' %(str(time.time() - start_time))) 
     current_time = time.time() 
      
     processed_dict = em.get_match_scans(sorted_dict, match_index_dict) 
+=======
+    print('--- %s seconds runtime ---' %(str(time.time() - start_time)))
+    current_time = time.time()
+
+    processed_dict = em.get_match_scans(sorted_dict, match_index_dict)
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     match_index_dict = []
     #em.output_file(processed_dict, directory, processed=True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
-        
+
     binned_dict = em.bin_array2(processed_dict) #SO THIS IS THE POINT AT WHICH THINGS BECOME SPARSE
     processed_dict = []
     #em.output_file2(binned_dict, directory, binned=True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
-    current_time = time.time() 
-       
+    current_time = time.time()
+
     pairs_list = em.create_pairs(binned_dict)
     binned_dict = []
     #em.output_file2(pairs_list, directory, pairs=True)
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
-    
+
     ordered_list = em.arrange_min_max(pairs_list)
     pairs_list = []
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     import copy
     ol_2 = copy.deepcopy(ordered_list)
     em.output_file2(ol_2, directory, ordered = True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
-   
-    #ready_array, ready_mass = em.convert_to_ready(ordered_list)
-    #print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
-    #new_list = []
-    #for thing in ready_array:
-    #   for item in thing:
-    #       print(item)
-    #       new_list.append(item.tolist())
-    #save_dict = {'filename': file, 'ready_array': new_list}
-    #rint(save_dict)
-    #em.output_file2(save_dict, directory)
-    #current_time = time.time()
-    
-    #em.output_list(ready_array, directory)
-    
-    #ready_array = em.convert_to_ready2(ordered_list)
+
     ready_array = em.convert_to_ready2(ordered_list)
     ordered_list = []
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))

@@ -1,35 +1,42 @@
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
-
 import tensorflow as tf
-import kerastuner as kt
 from tensorflow import keras
-
-from tensorflow.keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D, InputLayer
-from tensorflow.keras.layers import Activation 
+from tensorflow.keras.layers import Input, Dense, Conv1D, MaxPooling1D, UpSampling1D, InputLayer, Conv1DTranspose, Dropout, Flatten, BatchNormalization
+from tensorflow.keras.layers import Activation, LeakyReLU 
 from tensorflow.keras.models import Model
 from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.regularizers import l1
-
+from tensorflow.keras.metrics import CosineSimilarity
 from scipy.spatial.distance import cosine
 import numpy as np
+import time
 import pickle
 import json
 import h5py
 import random 
 
 def session_config(allocation=1):
-    print(tf.config.list_physical_devices())
+    """
+    Paramters:
+        allocation (int) : amount of memory allowed per process on gpu
+
+    Original code meant to expicitly dedicate memory prior
+    to training. Not in use - GPU does it automatically.
+    """
+    print("Possible training hardware", tf.config.list_physical_devices())
+    
+    #this is handy for checking if CUDA is properly installed
     tf.test.is_built_with_cuda()
-    #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=allocation)
+
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=allocation)
     config = tf.ConfigProto(gpu_options=gpu_options)
     config.gpu_options.allow_growth = True
     sess = tf.Session(config=config)
     K.set_session(sess)
 
 def generator(X_data, y_data, batch_size):
-    print('generator initiated')
     steps_per_epoch = X_data.shape[0]
     number_of_batches = steps_per_epoch // batch_size
     i = 0
@@ -40,10 +47,6 @@ def generator(X_data, y_data, batch_size):
         
         if np.count_nonzero(X_batch) == 0:
             y_batch = X_batch 
-      
-
-        X_batch = np.add.reduceat(X_batch, np.arange(0, X_batch.shape[1], 100), axis=1)
-        y_batch = np.add.reduceat(y_batch, np.arange(0, y_batch.shape[1], 100),axis=1) 
         i += 1
     
         yield X_batch, y_batch
@@ -53,7 +56,6 @@ def generator(X_data, y_data, batch_size):
             i = 0
 
 def training_generator(X_data, y_data, batch_size):
-    print('training generator initiated')
     steps_per_epoch = X_data.shape[0]
     number_of_batches = steps_per_epoch // batch_size
     i = 0
@@ -96,7 +98,7 @@ def test_generator(X_data, batch_size):
         i += 1
         print(X_batch.shape)
         
-        X_batch = np.add.reduceat(X_batch, np.arange(0, 200000, 100), axis =1)
+        #X_batch = np.add.reduceat(X_batch, np.arange(0, 200000, 100), axis =1)
 
         yield X_batch
         print('\ngenerator yielded a batch %s' %i)
@@ -139,13 +141,13 @@ def fit_val_model2(model, X_data, y_data):
     return model
 
 def predict_model(model, X_data):
-    batch_size = 128 
+    batch_size = 1 
     prediction = model.predict(x=test_generator(X_data, batch_size), max_queue_size=10, steps=X_data.shape[0] // batch_size)
     return prediction
 
 def eval_model(model, X_data, y_data):
-    batch_size = 128 
-    evaluation = model.evaluate_generator(generator=generator(X_data, y_data, batch_size),
+    batch_size = 256 
+    evaluation = model.evaluate(generator(X_data, y_data, batch_size),
                                             max_queue_size=40,
                                             steps=X_data.shape[0] // batch_size)
     return evaluation
@@ -156,7 +158,7 @@ def save_model(model, name_h5):
 
 def save_history(history, filename):
     with open(filename, 'wb') as file_pi:
-        pickle.dump(history.history, file_pi)
+        pickle.dump(history, file_pi)
     print('training history has been saved to %s' %filename)
 
 def load_history(history_file):
@@ -165,263 +167,177 @@ def load_history(history_file):
     return history_dict
 
 def model_Conv1D():
-    input_size = 2000
-    input_scan = Input(shape=(input_size, 1))
-    print(input_scan.shape)
-    hidden_1 = Conv1D(1, (5, ), activation='relu', padding='same')(input_scan)
-    print(hidden_1.shape)
-    hidden_2 = MaxPooling1D()(hidden_1)
-    hidden_3 = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_2)
-    print(hidden_3.shape)
-    hidden_4 = MaxPooling1D()(hidden_3)
-    hidden_5 = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_4)
-    print(hidden_5.shape)
-    encoded = MaxPooling1D((5, ))(hidden_5)
-    print(encoded.shape)
+    input_scan = Input(shape=(2000,1))    
+    init = tf.keras.initializers.Orthogonal(seed=10)
+    act = tf.keras.regularizers.l1(0.000001) 
 
-    hidden_6 = Conv1D(1, (5, ), activation='relu', padding='same')(encoded)
-    print(hidden_6.shape)
-    hidden_7 = UpSampling1D(5)(hidden_6)
-    hidden_8 = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_7)
-    print(hidden_7.shape)
-    hidden_9 = UpSampling1D()(hidden_8)
-    hidden_10 = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_9)
-    print(hidden_10.shape)
-    hidden_11 = UpSampling1D()(hidden_10)
-    decoded = Conv1D(1, (5, ), activation='relu', padding='same')(hidden_11)
-    print(decoded.shape)
+    #2,000
+    hidden_1 = Conv1D(32, (5,), strides = 1, padding='same', kernel_initializer = init)(input_scan)
+    act_1 = tf.keras.activations.tanh(hidden_1)    
+    hidden_2 = Conv1D(32, (5,), strides = 1, padding='same', kernel_initializer = init)(act_1)
+    act_2 = tf.keras.activations.tanh(hidden_2)
+    max_pool_1 = MaxPooling1D(2)(act_2)
+    print(max_pool_1.shape)
+    
+    #1,000
+    hidden_5 = Conv1D(64, (5,), strides = 1, padding='same', kernel_initializer = init)(max_pool_1)
+    act_5 = tf.keras.activations.tanh(hidden_5)
+    hidden_6 = Conv1D(64, (5,), strides = 1, padding='same', kernel_initializer = init)(act_5) 
+    act_6 = tf.keras.activations.tanh(hidden_6)
+    max_pool_2 = MaxPooling1D(2)(act_6)
+    print(max_pool_2.shape)
 
+    #500
+    hidden_9 = Conv1D(128, (5, ), strides = 1, padding='same', kernel_initializer = init)(max_pool_2)
+    act_9 = tf.keras.activations.tanh(hidden_9) 
+    hidden_10= Conv1D(128, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_9) 
+    act_10 = tf.keras.activations.tanh(hidden_10)
+    max_pool_3 = MaxPooling1D(2)(act_10)
+    print(max_pool_3.shape)
+
+    #250
+    hidden_13 = Conv1D(256, (5, ), strides = 1, padding='same', kernel_initializer = init)(max_pool_3)
+    act_13 = tf.keras.activations.tanh(hidden_13)
+    hidden_14 = Conv1D(256, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_13) 
+    act_14 = tf.keras.activations.tanh(hidden_14)
+    print("Act 14 ", act_14.shape)
+    #500
+    conv_up_1 = Conv1DTranspose(128, (5, ), strides = 2, padding='same', kernel_initializer = init)(act_14)
+    act_up_1 = tf.keras.activations.tanh(conv_up_1)
+    concat_1 = tf.keras.layers.Concatenate(axis=2)([act_up_1, act_10])
+    hidden_25 = Conv1D(128, (5, ), strides = 1,padding='same', kernel_initializer = init)(concat_1)
+    act_25 = tf.keras.activations.tanh(hidden_25)
+    hidden_26 = Conv1D(128, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_25) 
+    act_26 = tf.keras.activations.tanh(hidden_26)
+    print("Act 26 ", act_26.shape) 
+    #1,000
+    conv_up_2 = Conv1DTranspose(64, (5, ), strides = 2, padding='same', kernel_initializer = init)(act_26)
+    act_up_2 = tf.keras.activations.tanh(conv_up_2)
+    concat_2 = tf.keras.layers.Concatenate(axis=2)([act_up_2, act_6])
+    hidden_29 = Conv1D(64, (5, ), strides = 1, padding='same', kernel_initializer = init)(concat_2)
+    act_29 = tf.keras.activations.tanh(hidden_29)
+    hidden_30 = Conv1D(64, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_29)
+    act_30 = tf.keras.activations.tanh(hidden_30)
+    print("Act 30 ", act_30.shape)
+
+    #2,000
+    conv_up_3 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init)(act_30)
+    act_up_3 = tf.keras.activations.tanh(conv_up_3)
+    concat_3 = tf.keras.layers.Concatenate(axis=2)([act_up_3, act_2]) 
+    hidden_33 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init)(concat_3)
+    act_33 = tf.keras.activations.tanh(hidden_33)
+    hidden_34 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init)(act_33)  
+    act_34 = tf.keras.activations.tanh(hidden_34)
+    print("Act 34 ", act_34.shape)
+    decoded = Conv1D(1, (5, ), activation='tanh', padding='same', kernel_initializer = init)(act_34)
+    
+    print("Decoded ", decoded.shape)
+
+    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
+    name='Adam')
+    
+    cosine_loss = tf.keras.losses.CosineSimilarity(axis=1)
+    metric = tf.keras.metrics.CosineSimilarity(name='cosine_similarity', dtype=None, axis=1)
     model = Model(input_scan, decoded)
-    model.compile(optimizer='adadelta', loss='cosine_proximity', metrics=['accuracy'])
+    
+    model.compile(optimizer=adam, loss=cosine_loss, metrics=[metric])
     return model
 
-def model_deep_autoencoder():
-    input_size = 2000
-    encoding_dim = 100
-    input_scan = Input(shape=(input_size,))
-    
-    pre_hidden = Desne(2000, activation='relu')(input_scan)
-    hidden_1 = Dense(1000, activation='relu')(pre_hidden)
-    hidden_2 = Dense(500, activation='relu')(hidden_1)
-
-    encoded = Dense(encoding_dim, activation='relu')(hidden_2)
-
-    hidden_3 = Dense(500, activation='relu')(encoded)
-    hidden_4 = Dense(1000, activation='relu')(hidden_3)
-    post_hidden=Dense(2000, activation='relu')(hidden_4)
-
-    decoded = Dense(input_size, activation='relu')(post_hidden)
-    autoencoder = Model(input_scan, decoded)
-    autoencoder.compile(optimizer='adadelta', loss='cosine_proximity', metrics=['accuracy'])
-    return autoencoder
-
-
-def model_autoencoder():
-    input_size = 200
-    encoding_dim = 2000
-    input_scan = Input(shape=(input_size,))
-    encoded = Dense(encoding_dim, activation='relu')(input_scan)
-
-    decoded = Dense(input_size, activation='relu')(encoded)
-
-    autoencoder = Model(input_scan, decoded)
-    autoencoder.compile(optimizer='adam', loss='cosine_proximity', metrics=['accuracy'])
-    return autoencoder
-
-###CHRISSY CODE BELOW
-
-###initialize an autoencoder binned nominaly
-def initialize_autoencoder_low_res():
-    input_size = 2000
-    encoding_dim = 400
-
-    input_scan = Input(shape=(input_size,)) 
-    
-    hidden_1 = Dense(1000, activation = 'relu')(input_scan)
-    hidden_2 = Dense(700, activation = 'relu')(hidden_1)
-    encoded = Dense(encoding_dim, activation='relu')(hidden_2)
-    hidden_3 = Dense(700, activation = 'relu')(encoded)
-    hidden_4 = Dense(1000, activation = 'relu')(hidden_3)
-    decoded = Dense(input_size, activation='relu')(hidden_4)
-
-    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
-    name='Adam')
-
-    autoencoder = Model(input_scan, decoded)
-    autoencoder.compile(optimizer=adam, loss='cosine_similarity', metrics=['accuracy'])
-   
-    return(autoencoder)
-
-
-###intialize an autoencoder binned to the tenths
-def initialize_autoencoder_high_res():
-    input_size = 200000
-    encoding_dim = 400
-
-    input_scan = Input(shape=(input_size,)) 
-    
-    hidden_1 = Dense(1200, activation = 'relu')(input_scan)
-    hidden_2 = Dense(700, activation = 'relu')(hidden_1)
-    encoded = Dense(encoding_dim, activation='relu')(hidden_2)
-    hidden_3 = Dense(700, activation = 'relu')(encoded)
-    hidden_4 = Dense(1200, activation = 'relu')(hidden_3)
-    decoded = Dense(input_size, activation='relu')(hidden_4)
-
-    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
-    name='Adam')
-
-    autoencoder = Model(input_scan, decoded)
-    autoencoder.compile(optimizer=adam, loss='cosine_similarity', metrics=['accuracy'])
-   
-    return(autoencoder)
-
-
-###divide and yield data for train and validate
-def test_train_split_high_res(X_data, y_data, batch_size):
-    print('generator initiated')
-
-    steps_per_epoch = X_data.shape[0]
-    number_of_batches = steps_per_epoch // batch_size
-    i = 0
-
-    #the number of samples wer want to use to validate
-    amount_validate = int(X_data.shape[0] * 0.30)
-    
-    #the number where we "start" grabbing samples
-    seed_number = np.random.seed(0, number_of_batches)
-    start_seed = seed_number
-
-    val = True
-    
-    #this executes until the epoch is over
-    while val is True:
-        X_batch = X_data[seed_number*batch_size:(seed_number+1)*batch_size]
-        y_batch = y_data[seed_number*batch_size:(seed_number+1)*batch_size]
-        
-        print(seed_number)
-
-        if np.count_nonzero(X_batch[0]) == 0:
-            y_batch[0] = X_batch[0]
-
-        seed_number += 1
-    
-        if seed_number >= number_of_batches:
-            seed_number = 0
-        
-        yield X_batch, y_batch
-        print('\ngenerator yielded a batch %s' %i)
-         
-        if seed_number == start_seed:
-            val = False    
-
-def fit_autoencoder(autoencoder, X_data, y_data, data_resolution):   
-    batch_size = 128
-    split = 0.7
-    test_size = int(batch_size * (1-split))
-    epochs = 50
+  
+def fit_autoencoder(autoencoder, X_data, y_data):    
+    batch_size = 512
+    test_size = 32 
+    print("Test Size ", test_size)
+    print("Batch Size ", batch_size)
+    epochs = 6 
+    print("Epcohs ", epochs)
     idx = X_data.shape[0]
+
+    print("Total X", X_data.shape)
+    print("Total y", y_data.shape)
 
     test_loss = []
     train_loss = []
+    test_acc = []
+    train_acc = []
+    i = 0
+    list_of_indices = []
 
+    while i+batch_size+test_size < 3300000 and i+batch_size+test_size < idx:
+        temp_tuple = (i, i+batch_size+test_size)
+        list_of_indices.append(temp_tuple)
+        i += batch_size+test_size
+
+    for c, thing in enumerate(list_of_indices):
+        if c < 10:
+            print(thing)
+
+    training_indices = []
+    testing_indices = []
+
+    for index_set in list_of_indices:
+        training_indices.append((index_set[0], index_set[0] + batch_size))
+        testing_indices.append((index_set[0] + batch_size, index_set[1]))
+        
     for epoch in range(epochs): 
-        print("\nStart of epoch %d" % (epoch,))
+        t0 = time.time()
+        print("\nStart of epoch %d" % (epoch + 1,))
         list_of_indices = []
-        i = 0
-
-        while i < idx:
-            temp_tuple = (i, i+batch_size+test_size)
-            list_of_indices.append(temp_tuple)
-            i += batch_size+test_size
-       
-        random.shuffle(list_of_indices) 
+        
+        random.seed(10)
+        random.shuffle(training_indices)
+        random.shuffle(testing_indices)
         
         val_loss = []
         acc_loss = []
-        for step, indices in enumerate(list_of_indices):
-            start_train = indices[0]
-            end_train = start_train + batch_size
-            start_test = end_train
-            end_test = indices[1]
-
-            train_dict = autoencoder.train_on_batch(X_data[start_train:end_train], y_data[start_train:end_train], return_dict=True)
-            test_dict = autoencoder.test_on_batch(X_data[start_test:end_test], y_data[start_test:end_test], return_dict=True)
+        cos = []
+        t_cos = []
+        for step, train_indices in enumerate(training_indices):
+            start_train = train_indices[0]
+            end_train = train_indices[1]
+            
+            if step == 0 and epoch == 0:
+                print(start_train, end_train)
+                print("Data Shape Train", X_data[start_train:end_train].shape)
+                
+            
+            train_x = np.expand_dims(X_data[start_train:end_train], axis=2)
+            train_y = np.expand_dims(y_data[start_train:end_train], axis=2)
+            train_dict = autoencoder.train_on_batch(train_x, train_y, return_dict=True)
             val_loss.append(train_dict['loss'])
+            t_cos.append(train_dict['cosine_similarity'])
+
+        for step, test_indices in enumerate(testing_indices):
+            start_test = test_indices[0]
+            end_test = test_indices[1]
+
+            if step == 0 and epoch == 0:
+                print("Data shape test", X_data[start_test:end_test].shape)
+            test_x = np.expand_dims(X_data[start_test:end_test], axis =2)
+            test_y = np.expand_dims(y_data[start_test:end_test], axis = 2)
+
+            test_dict = autoencoder.test_on_batch(test_x, test_y, return_dict=True)
             acc_loss.append(test_dict['loss'])
-       
+            cos.append(test_dict['cosine_similarity'])
+            
+        test_acc.append(np.mean(cos))
+        train_acc.append(np.mean(t_cos))
         test_loss.append(np.mean(acc_loss))
         train_loss.append(np.mean(val_loss))
+        print('Train Cosine Similarity ' + str(np.mean(t_cos)))
+        print('Test Cosine Similarity ' + str(np.mean(cos)))
+        print('Train Loss: ' + str(np.mean(val_loss)))
+        print('Test Loss: ' + str(np.mean(acc_loss)))
+        
+        if epoch == 0:
+            print(autoencoder.summary())
+        
+        t1 = time.time()
 
-        print('Validation Loss: ' + str(np.mean(val_loss)))
-        print('Training Loss: ' + str(np.mean(acc_loss)))
-
-    loss_dict = {'test_loss':test_loss, 'train_loss':train_loss}
+        print("Total Epoch Time: ", t1-t0)
+    loss_dict = {'test_loss':test_loss, 'train_loss':train_loss, 'test_acc' : test_acc, "train_acc": train_acc}
     return(autoencoder, loss_dict)
 
 def pickle_loss_dict(loss_dict, model_name):
     with open(model_name, 'wb') as handle:
         pickle.dump(loss_dict, handle)
-
-###hyper parameter tuning with keras tuner
-def model_builder(hp):
-    model = keras.Sequential()
-
-    hp_layer_2 = hp.Int('units', min_value = 700, max_value = 1100, step = 32)
-    hp_layer_3 = hp.Int('units', min_value = 400, max_value = 1000, step = 2)
-    hp_layer_4 = hp.Int('units', min_value = 350, max_value = 900, step = 32)
-
-    hp_units_encoded = hp.Int('units', min_value = 300, max_value = 800, step = 32)
-    
-
-    hp_learning_rate = hp.Choice('learning_rate', values = [1e-2, 1e-3, 1e-4]) 
-    input_size = 200000
-
-    model.add(Input(shape=(200000,)))
-    model.add(Dense(units = 1200, activation = 'relu'))
-    model.add(Dense(units = hp_layer_2, activation = 'relu'))
-    model.add(Dense(units = hp_layer_3, activation = 'relu'))
-    model.add(Dense(units = hp_layer_4, activation = 'relu'))
-
-    model.add(Dense(units = hp_units_encoded, activation = 'relu'))
-    
-    model.add(Dense(units = hp_layer_4, activation = 'relu'))
-    model.add(Dense(units = hp_layer_3, activation = 'relu'))
-    model.add(Dense(units = hp_layer_2, activation='relu'))
-    model.add(Dense(units = 1200, activation = 'relu'))    
-
-    
-    model.compile(optimizer = keras.optimizers.Adam(learning_rate = hp_learning_rate), \
-                              loss = 'cosine_similarity', metrics = ['accuracy'])
-    return(model)
-
-###instantiate the tuner
-def keras_tune():
-    tuner = kt.Hyperband(model_builder,objective = 'val_accuracy', 
-            max_epochs = 10,
-                     factor = 3,
-                     directory = 'my_dir',
-                     project_name = 'intro_to_kt')  
-    return(tuner)
-
-###call back clear
-class ClearTrainingOutput(tf.keras.callbacks.Callback):
-  def on_train_end(*args, **kwargs):
-    IPython.display.clear_output(wait = True)
-
-def keras_fit(tuner, X_data, y_data, X_val, y_val):
-    batch_size = 1
-    tuner.search(x=tensor_creation(X_data, y_data, batch_size), epochs = 10, 
-                validation_data = validation_generator(X_val, y_val, batch_size))
-    return(tuner)
-
-def keras_test(tuner):
-	best_hps = tuner.get_best_hyperparameters(num_trials = 1)[0]
-	print(f"""
-The hyperparameter search is complete. The optimal number of units in the first densely-connected
-layer is {best_hps.get('units')} and the optimal learning rate for the optimizer
-is {best_hps.get('learning_rate')}.
-""")
-
-
-
-
