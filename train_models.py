@@ -13,7 +13,6 @@ parser.add_argument('model_name', help='name to save model under')
 args = parser.parse_args()
 data = args.data
 path = args.path
-classifier = args.classifier
 model_name = args.model_name
 
 outdir = join(path, 'models/')
@@ -24,7 +23,7 @@ dataset_high = f['high_peaks']
 
 model = ms2_model.model_Conv1D()
 model, loss_dict = ms2_model.fit_autoencoder(model, dataset_low, dataset_high)
-ms2_model.save_model(model, join(outdir, 'conv1d/', 'conv1d_42.h5'))
-ms2_model.save_history(loss_dict, join(outdir, 'conv1d/', 'conv1d_42_history.pickle'))
+ms2_model.save_model(model, join(outdir, 'conv1d/', '%s.h5' %model_name))
+ms2_model.save_history(loss_dict, join(outdir, 'conv1d/', '%s_history.pickle' %model_name))
 
 print('operations complete')
