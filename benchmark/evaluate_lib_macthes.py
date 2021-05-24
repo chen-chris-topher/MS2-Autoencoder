@@ -143,7 +143,7 @@ def currated_sheet_analysis():
     import seaborn as sns
     import matplotlib.pyplot as plt
     
-    currated_df = pd.read_csv('all_merge_GNPS_results.csv')
+    currated_df = pd.read_csv('all_merge_GNPS_results_currate.csv')
     print(currated_df) 
     added_peaks  = pd.read_csv('./added_peaks_1_10000.csv')
     added_peaks_list = added_peaks['added_peaks'].tolist()
@@ -202,32 +202,24 @@ def currated_sheet_analysis():
         
         
         #criteria 1 defines when a new match is made    
-        if lib_m == 'yes' and noi_m == 'no' and pre_m == 'yes':
+        
+        if lib_m == 'no' and pre_m =='yes':
+            success_exp[peaks]+=1
+
+        if lib_m == 'yes' and pre_m == 'yes':
             success_exp[peaks] += 1
             compound_name[name]['succeeded'] += 1
         
-        if lib_m == 'yes' and noi_m == 'no' and pre_m == 'no':
+        if lib_m == 'yes' and pre_m == 'no':
             failed_exp[peaks] += 1
             failed_index.append(index)
             compound_name[name]['failed'] += 1
 
-        if lib_m == 'yes' and noi_m == 'yes' and pre_m == 'yes':
-            if pre_score > noi_score:
-                success_exp[peaks] += 1
-            else:
-                failed_exp[peaks] += 1
-        """ 
-        if lib_m == 'yes' and noi_m == 'yes' and pre_m == 'no':
-            if noi_score < lib_score:
-                failed_exp[peaks] += 1
-                failed_index.append(index)
-                compound_name[name]['failed'] += 1
-        """       
+        """      
         if lib_m == 'no' and noi_m == 'no' and pre_m == 'yes': 
             success_exp[peaks] += 1
             compound_name[name]['succeeded'] += 1
-       
-        
+        """
     print(success_exp)
     print(failed_exp)
     
@@ -333,7 +325,7 @@ def sirius_explore_percent_explained_peaks():
 if __name__ == "__main__":
     #sirius_output_analysis()
     #sirius_explore_percent_explained_peaks()
-    main()
+    #main()
     currated_sheet_analysis()
 
 
