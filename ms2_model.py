@@ -18,16 +18,25 @@ import h5py
 import random 
 
 def session_config(allocation=1):
-    print(tf.config.list_physical_devices())
+    """
+    Paramters:
+        allocation (int) : amount of memory allowed per process on gpu
+
+    Original code meant to expicitly dedicate memory prior
+    to training. Not in use - GPU does it automatically.
+    """
+    print("Possible training hardware", tf.config.list_physical_devices())
+    
+    #this is handy for checking if CUDA is properly installed
     tf.test.is_built_with_cuda()
-    #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=allocation)
+
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=allocation)
     config = tf.ConfigProto(gpu_options=gpu_options)
     config.gpu_options.allow_growth = True
     sess = tf.Session(config=config)
     K.set_session(sess)
 
 def generator(X_data, y_data, batch_size):
-    print('generator initiated')
     steps_per_epoch = X_data.shape[0]
     number_of_batches = steps_per_epoch // batch_size
     i = 0
@@ -38,10 +47,6 @@ def generator(X_data, y_data, batch_size):
         
         if np.count_nonzero(X_batch) == 0:
             y_batch = X_batch 
-      
-
-        #X_batch = np.add.reduceat(X_batch, np.arange(0, X_batch.shape[1], 100), axis=1)
-        #y_batch = np.add.reduceat(y_batch, np.arange(0, y_batch.shape[1], 100),axis=1) 
         i += 1
     
         yield X_batch, y_batch
@@ -51,7 +56,6 @@ def generator(X_data, y_data, batch_size):
             i = 0
 
 def training_generator(X_data, y_data, batch_size):
-    print('training generator initiated')
     steps_per_epoch = X_data.shape[0]
     number_of_batches = steps_per_epoch // batch_size
     i = 0
@@ -162,83 +166,8 @@ def load_history(history_file):
     history_dict = pickle.load(file)
     return history_dict
 
-
-def stacked():
-    input_scan = Input(shape=(2000,1))
-    init = tf.keras.initializers.Orthogonal(seed=10)
-    #2000
-    hidden_1 = Conv1D(32, (5,), strides = 1, padding='same', kernel_initializer = init)(input_scan)
-    act_1 = tf.keras.activations.tanh(hidden_1)
-    max_pool_1 = MaxPooling1D(2)(act_1)
-    
-    #1000
-    hidden_2 = Conv1D(32, (5,), strides = 1, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(max_pool_1)
-    act_2 = tf.keras.activations.tanh(hidden_2) 
-    bn_2 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_2)
-    print(act_2.shape)
-    max_pool_2 = MaxPooling1D(2)(bn_2)
-    
-    #500
-    hidden_9 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(max_pool_2)
-    act_9 = tf.keras.activations.tanh(hidden_9) 
-    bn_9 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_9)
-    print(act_9.shape)
-    max_pool_3 = MaxPooling1D(2)(bn_9) 
-
-    #100
-    hidden_13 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(max_pool_3)
-    act_13 = tf.keras.activations.tanh(hidden_13) 
-    bn_13 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_13)
-    print(act_13.shape)
-    max_pool_4 = MaxPooling1D(2)(bn_13)
-    
-    #50
-    hidden_15 = Conv1D(32, (5, ), strides = 1, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(max_pool_4)
-    act_15 = tf.keras.activations.tanh(hidden_15)
-    bn_15 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_15)
-    print(act_15.shape)
-
-    #100
-    conv_up_0 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(bn_15)
-    act_up_0 = tf.keras.activations.tanh(conv_up_0)
-    bn_22 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_up_0)
-    print(act_up_0.shape)
-
-    #400
-    conv_up_1 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(bn_22)
-    act_up_1 = tf.keras.activations.tanh(conv_up_1)
-    bn_23 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_up_1)
-    print(act_up_1.shape)
-
-    #1000
-    conv_up_2 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init, activity_regularizer = tf.keras.regularizers.l2(l2=0.01))(bn_23)
-    act_up_2 = tf.keras.activations.tanh(conv_up_2)
-    bn_7 = tf.keras.layers.BatchNormalization(momentum = 0.9)(act_up_2)
-    print(act_up_2.shape)
-
-    #2000
-    conv_up_3 = Conv1DTranspose(32, (5, ), strides = 2, padding='same', kernel_initializer = init)(bn_7)
-    act_up_3 = tf.keras.activations.tanh(conv_up_3)
-    print(act_up_3.shape)
-
-    decoded = Conv1D(1, (3, ), activation='tanh', padding='same')(bn_8)
-    
-    print("Decoded", decoded.shape)
-
-    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=False,
-    name='Adam')
-    
-    cosine_loss = tf.keras.losses.CosineSimilarity(axis=1)
-    metric = tf.keras.metrics.CosineSimilarity(name='cosine_similarity', dtype=None, axis=1)
-    model = Model(input_scan, decoded)
-    
-    model.compile(optimizer=adam, loss=cosine_loss, metrics=[metric])
-    return model
-
-
-def model_Conv1D_lowres():
-    input_scan = Input(shape=(2000,1))
-    
+def model_Conv1D():
+    input_scan = Input(shape=(2000,1))    
     init = tf.keras.initializers.Orthogonal(seed=10)
     act =tf.keras.regularizers.l1(0.000001) 
 
@@ -316,13 +245,12 @@ def model_Conv1D_lowres():
 
   
 def fit_autoencoder(autoencoder, X_data, y_data):    
-    batch_size = 512 
-    split = 1
-    test_size = int(batch_size * (1-split))
+    batch_size = 512
     test_size = 32 
     print("Test Size ", test_size)
-    
+    print("Batch Size ", batch_size)
     epochs = 6 
+    print("Epcohs ", epochs)
     idx = X_data.shape[0]
 
     print("Total X", X_data.shape)
