@@ -13,58 +13,8 @@ MS2 Autoencoder is built on Keras for Python. The purpose of MS2 Autoencoder is 
 * scipy
 * numpy
 * time
+* json
 
-### 1. Gather and Extract Data
-1. Generate list of elible spectra
-    1. Download the file from this link (current use positive QE data)
-2. Get spectra by running a python script here
-    1. Change the parameters for the number of spectra you want to download here
-        * It's not realistic to download all spectra at once for memory reasons, I tend to do 4k
-        at a time
-        * This is the extraction bottleneck
-3. In MS2-Autoencoder/bin/**main_optimized.py** import extract_mzxml as em
-    1. Change the config file to fit needs here
-    2. Make sure the location of the input/output is correct here
-    3. If you would like to record the filename/scan number being used you need to modify this line
-        * There are a bunch of paramters you can set to output different files, most of them aren't helpful
-        unless you think the code is messed up
-4. Run nextflow and watch data extract
-    1. nextflow run extract_mzxml.nf -c cluster.config
-        * The work folder gets large, in between runs it's helpful to delete it        
-
-### 2. Stitch .npz into .hdf5
-1. Run **processing.py**, which  will concatenate all .npz; it will output two files
-    1. Specify path to the parent directory of all outdirs, specify name of the data file ('ready_array2.npz')
-    2. This will output an .hdf5 file containing all data and .txt file containing the filepath and scan number for data tracking
-    3. Note that this will also L2 normalize all data (THIS IS THE WAY WE FEED THE DATA TO THE MODEL)
-        * It's a very easy transition between base-peak and l2 normalization
-        * I used base-peak normalization for data analysis (mirror plots will scale this way anyways, easier to diagnose)
-** If you'd like to do all of the above at the same time, check all the parameters listed, then run 
-script download_extract_repeat.py (https://github.com/laserc/MS2-Autoencoder/blob/chrissys_branch_3/download_extract_repeat.py) 
-
-### 3. Shuffle Data
-1. Run shuffle_hdf5.py with the name of the .hdf5 file as a command line parameter
-    1. This will create a new file, with the word "shuffle" before the filename
-
-### 4. Train models
-1. Model architecture is outlined in ms2_model.py starting at this line
-    1. Current implementation is a U-Net
-    2. Change weight initialization here, loss function here, and optimizer/learning rate here
-2. Define the number of epochs, batch size and test size here, here, and here respectively
-    1. Manually set these each time because it's fairly easy and I like to double check it
-    2. TRAINING, VALIDATION, AND TESTING DATA ALL COME FROM THE SAME HDF5 FILE.
-        * This means when you run the training, you will specify the lump sum of training / testing in command line
-            * IE. Run train_models.py passing 3,000,000 to take that amount from the hdf5 into training
-            * Splitting between training / testing happens after and ratio based on sizes set in-line
-3. Code for actually running training is train_models.py
-    * Specify model name to save under and number of spectra to use
-    * Trained models are saved as .h5 with architeture and weights
-    * Loss and accuracy history are saved in .pickle format
-4. Predictions are done by running test_models.py
-    * Specify model name to test 
-    * Specify th number of spectra that were used in the training process,
-    everything else is used to test
-    * Predictions are saved to numpy matrix with _predictions.npy at the end of the model name
 
 ### Some Tensorflow & Cuda Notes
 * Current version use tensorflow-gpu 2.3.0
@@ -74,6 +24,60 @@ script download_extract_repeat.py (https://github.com/laserc/MS2-Autoencoder/blo
 * Cudnn install might be needed to, depends on your system specifically
 * Can never get rdkit and tensorflow to play nice 
 * Best of luck
+
+### Downloading and Extracting Data
+There are three ways to run this workflow.
+1) Single file use
+2) Small batch 1-4000 files
+3) Full workflow, any number of files 
+
+The output of extraction is 1 directory per input file containing "ready_array2.npz" and "ordered_list2.json".
+An important file for small batch use and full workflow use is all_filenames.csv.
+This file is a a csv saved from this link: http://dorresteintesthub.ucsd.edu:5234/datasette/database/filename.csv?_dl=on&_stream=on&_sort=filepath&sample_type__exact=GNPS&filepath__endswith=.mzML&_size=max
+
+1) Single file use
+    * Download a .mzXML or .mzML file
+    * python ./bin/main_optimized.py data_file directory
+    * "directory" refers to output directory
+2) Small batch use
+    * python wget_all_files.py lower_num upper_num
+        * Downloads the data
+        * lower_num and upper_num are used to slice from the file all_filenames.csv
+        * An alternative is to modify this code to open any file and read filenames to download
+        * This step is the bottleneck
+    * nextflow run extract_data.nf -c cluster.config
+        * Extracts the data
+            * ready_array2.npz will be the binned data matrix with actual spectra
+            * ordered_list2.json will have filename, scan number and precursor mass per spectra
+            * the order is retained between these two things
+        * Flag "-c cluster.config" for managing cluster use
+        * Change lines in file extract_data.nf to make sure it works properly
+            * params.inputSpectra = "./spectra_data_1/*{.mzXML,.mzML}"
+            * params.outdir = "$baseDir/output_nf_1" 
+            * Refers to location of input spectra and where extracted directories will be output 
+    * python procssing.py data_path data_name
+        * Concats the data into a single .hdf5 file and a .txt file
+            * exports big_data.hdf5 containing two datasets "low_peaks" and "high_peaks" in order
+            * exports all_files.txt with all filenames, scan numbers, and precursor masses
+            * simply the stitched together extractions
+        * data_path is the directory that all the extraction directories live in
+            * output_nf_1 in this example 
+        * data_name is the name of the .npz file with the binned data
+            * defaults to ready_array2.npz in code
+        * Data is L2 normalized in this step
+
+3) Full workflow use
+    * python download_extract_repeat.py
+        * Only parameters that might want to be adjusted are in-line for the maxmimum number of 
+        samples to be processed, default is 15,000
+        * Strings togeher above workflows in chunks of 5,000 files, deleting each chunk after 
+        workflow finishes
+        * Numbers output files by chunk ie. nominal_1_5000.hdf5
+
+### Training Model
+1. python train_model.py 
+
+
 
 ### Downstream Testing
 Visualizing the difference between predictions and validation data cosine scores.
