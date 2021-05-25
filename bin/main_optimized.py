@@ -66,18 +66,21 @@ else:
     current_time = time.time()
 
     processed_dict = em.get_match_scans(sorted_dict, match_index_dict)
+
     match_index_dict = []
     #em.output_file(processed_dict, directory, processed=True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
 
     binned_dict = em.bin_array2(processed_dict) #SO THIS IS THE POINT AT WHICH THINGS BECOME SPARSE
-    processed_dict = []
+     
+   
     #em.output_file2(binned_dict, directory, binned=True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
-
+	
     pairs_list = em.create_pairs(binned_dict)
+    
     binned_dict = []
     #em.output_file2(pairs_list, directory, pairs=True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))

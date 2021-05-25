@@ -68,15 +68,9 @@ def find_MS2(data, directory, filename):
                     if rt2 <= rt1 + rt_tolerance and rt2 >= rt1 - rt_tolerance:  
                         if float(prec2) >= (float(prec1) * 10):           
                             two_list.append(key2)
-           if len(two_list) != 0:
+            if len(two_list) != 0:
                 match_index_dict[key] = two_list
-            redun_check = False
-
-            #if key in match_index_dict.keys():
-                #print(key, match_index_dict[key])
-
-       else:
-            redun_check = False
+ 
     return (match_index_dict, return_sort_dict)
 
 def get_match_scans(sorted_dict, match_index_dict):
@@ -230,11 +224,12 @@ def create_pairs(binned_dict):
                         low[low < 0.05] = 0.0
                         high[high < 0.05] = 0.0
                         cos = 1 - cosine(low, high)
+                        
                         if cos >= 0.5 and cos < 1.0:
                             binned_dict[key][i][scan]['intensity array'] = low
                             binned_dict[key][j][scan2]['intensity array'] = high
                             pairs.append([binned_dict[key][i][scan], binned_dict[key][j][scan2]])
-
+                            
         pairs_list.append(pairs)
     print('successfully created pairs for all matched scans')
     return pairs_list
@@ -449,6 +444,7 @@ def output_file2(in_dict, directory, binned=None, pairs=None, ordered=None):
                             c['intensity array'] = c['intensity array'].tolist()
                         except:
                             pass
+       
         json = json.dumps(in_dict)
         filename = directory + '/ordered_list2.json'
         with open(filename, 'w') as output:

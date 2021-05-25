@@ -77,8 +77,9 @@ def extra_information(file):
         for a in item:
             for b in a:
                 filename = b['filename']
-                scan = b['scan']               
-                big_listo.append(filename + ' ' + str(scan))
+                scan = b['scan']      
+                prec_mz = b['precursorMz']         
+                big_listo.append(filename + ' ' + str(scan) + ' ' + str(prec_mz))
 
 #hdf5 stitching
 def stitch_hdf5(file_list, norm, name='big_data.hdf5'):

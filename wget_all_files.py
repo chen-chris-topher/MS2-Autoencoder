@@ -10,10 +10,10 @@ parser.add_argument('upper_num', help='upper number of files')
 
 args = parser.parse_args()
 
-lower = args.lower_num
-upper = args.upper_num
+lower_num = args.lower_num
+upper_num = args.upper_num
 
-destination_file = './spectra_data_2'
+destination_file = './spectra_data_1'
 
 filename = './all_filenames.csv'
 df = pd.read_csv(filename)
@@ -33,12 +33,11 @@ print("About to pull files")
 #first we get the first 6000
 exclusion_files =[]
 for filename in files: 
-    if filename.split('/')[3] not in exclusion_files:
-        new_name = filename.replace('/','_').replace(" ","_")
-        new_name = destination_file + '/' + new_name
-        filename = filename.replace(' ','%20')
-        filename ='ftp://massive.ucsd.edu/' + filename
-        cmd = 'wget -O '+ new_name + ' ' + filename
+    new_name = filename.replace('/','_').replace(" ","_")
+    new_name = destination_file + '/' + new_name
+    filename = filename.replace(' ','%20')
+    filename ='ftp://massive.ucsd.edu/' + filename
+    cmd = 'wget -O '+ new_name + ' ' + filename
  
-        os.system(cmd)
+    os.system(cmd)
 
