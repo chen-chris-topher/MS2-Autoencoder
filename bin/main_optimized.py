@@ -56,17 +56,16 @@ elif args.match_index_file: #tests the get_match_scans() function
 else:
     match_index_dict, sorted_dict = em.find_MS2(data, directory, file) #made some adjustments, works as intended 
     #em.output_file2(match_index_dict, './')    
-<<<<<<< HEAD
+
     print('--- %s seconds runtime ---' %(str(time.time() - start_time))) 
     current_time = time.time() 
      
     processed_dict = em.get_match_scans(sorted_dict, match_index_dict) 
-=======
+
     print('--- %s seconds runtime ---' %(str(time.time() - start_time)))
     current_time = time.time()
 
     processed_dict = em.get_match_scans(sorted_dict, match_index_dict)
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     match_index_dict = []
     #em.output_file(processed_dict, directory, processed=True)
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
@@ -81,21 +80,11 @@ else:
     pairs_list = em.create_pairs(binned_dict)
     binned_dict = []
     #em.output_file2(pairs_list, directory, pairs=True)
-<<<<<<< HEAD
-    
-=======
-
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     print('--- %s seconds runtime ---' %(str(time.time() - current_time)))
     current_time = time.time()
 
     ordered_list = em.arrange_min_max(pairs_list)
     pairs_list = []
-<<<<<<< HEAD
-    
-=======
-
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     import copy
     ol_2 = copy.deepcopy(ordered_list)
     em.output_file2(ol_2, directory, ordered = True)

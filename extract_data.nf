@@ -1,5 +1,5 @@
 #!/usr/bin/env nextflow
-params.inputSpectra = "./spectra_data_1/*mzXML"
+params.inputSpectra = "./spectra_data_1/*{.mzXML,.mzML}"
 params.outdir = "$baseDir/output_nf_1"
 TOOL_FOLDER = "$baseDir/bin"
 
@@ -9,7 +9,6 @@ process extractPairs {
     echo true
     //validExitStatus 1
     publishDir "$params.outdir", mode: 'copy'
-	 
 
     input:
     set file_id, extension, file(inputFile) from Channel.fromPath( params.inputSpectra ).map { file -> tuple(file.baseName, file.extension, file) }

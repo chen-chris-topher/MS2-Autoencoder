@@ -68,10 +68,6 @@ def stitch_npz(file_list):
 
     np.savez_compressed('concated_data', big_data)
 
-<<<<<<< HEAD
-
-=======
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
 def extra_information(file):
     import json
     filename = file.replace('ready_array2.npz','ordered_list2.json')
@@ -81,11 +77,7 @@ def extra_information(file):
         for a in item:
             for b in a:
                 filename = b['filename']
-<<<<<<< HEAD
                 scan = b['scan']               
-=======
-                scan = b['scan']
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
                 big_listo.append(filename + ' ' + str(scan))
 
 #hdf5 stitching
@@ -137,16 +129,10 @@ def stitch_hdf5(file_list, norm, name='big_data.hdf5'):
         except:
             print("Failed to reshape data into hdf5")
             pass
-<<<<<<< HEAD
     with open('all_files.txt', 'a') as hf:
         for line in big_listo:
             hf.write(line + '\n')
-=======
-	with open('all_files.txt', 'a') as hf:
-        for line in big_listo:
-            hf.write(line + '\n')
 
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     print('saved all data to %s' % name)
 
 def stitch_hdf5_Conv1D(file_list, norm, name='big_data_conv1d.hdf5'):

@@ -41,11 +41,7 @@ def find_MS2(data, directory, filename):
                 inten_array = data[i].get('intensity array').tolist()
 
                 return_sort_dict[i] = {'mz': mz, 'rt': rt, 'inten' : inten, 'id':id, 'mz array': mz_array, 'inten array' : inten_array, 'filename':filename}
-<<<<<<< HEAD
-                
-=======
 
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
     #find all potential matches, regarless of precursor or overlap 
     for key, item in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True):
         mz1 = item['mz']
@@ -57,11 +53,8 @@ def find_MS2(data, directory, filename):
         redun_check = False
 
         if redun_check is False:
-<<<<<<< HEAD
-            for key2, item2 in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True): 
-=======
             for key2, item2 in sorted(return_sort_dict.items(), key=lambda x: (x[1]['mz'], x[1]['rt']), reverse=True):
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
+
                 mz2 = item2['mz']
                 rt2 = item2['rt']
                 prec2 = item2['inten']
@@ -71,38 +64,21 @@ def find_MS2(data, directory, filename):
 
                 #if we get below the target value by the mz tolerance, we're not getting higher
                 if mz2 <= mz1 + mass_tolerance and mz2 >= mz1 - mass_tolerance:
-<<<<<<< HEAD
+
                     if rt2 <= rt1 + rt_tolerance and rt2 >= rt1 - rt_tolerance:  
                         if float(prec2) >= (float(prec1) * 10):           
                             two_list.append(key2)
-                        
-            if len(two_list) != 0:    
-                match_index_dict[key] = two_list
-            redun_check = False
-            
-            #if key in match_index_dict.keys():
-                #print(key, match_index_dict[key])
-            
-=======
-                    if rt2 <= rt1 + rt_tolerance and rt2 >= rt1 - rt_tolerance:
-                        if float(prec2) >= (float(prec1) * 10):
-         					two_list.append(key2)
-            if len(two_list) != 0:
+           if len(two_list) != 0:
                 match_index_dict[key] = two_list
             redun_check = False
 
             #if key in match_index_dict.keys():
                 #print(key, match_index_dict[key])
 
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
-            #print('%s of %s' %(key, len(return_sort_dict))) 
-            #print('Finished search for dict[%s]' %key)
-        else:
+       else:
             redun_check = False
     return (match_index_dict, return_sort_dict)
 
-<<<<<<< HEAD
-=======
 def get_match_scans(sorted_dict, match_index_dict):
     """
     collect the information from the data for the matching molecules
@@ -132,7 +108,7 @@ def get_match_scans(sorted_dict, match_index_dict):
                                                 'filename': sorted_dict[index]['filename'],
                                                 'scan': sorted_dict[index]['id']} #intensity array
     return processed_dict
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
+
 def get_match_scans(sorted_dict, match_index_dict):
     """
     collect the information from the data for the matching molecules
@@ -142,13 +118,9 @@ def get_match_scans(sorted_dict, match_index_dict):
 
     for key in match_index_dict.keys(): #key loops through scans   
         save_key = sorted_dict[key]['id']
-<<<<<<< HEAD
-        processed_dict[int(save_key)] = [] 
-        
-=======
         processed_dict[int(save_key)] = []
 
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
+
         for index, i in zip(match_index_dict[key], range(0, len(match_index_dict[key]))):
             scan = int(sorted_dict[index]['id'])
             rt = sorted_dict[index]['rt']
@@ -163,11 +135,7 @@ def get_match_scans(sorted_dict, match_index_dict):
                                                 'precursorMz':mz, #precursorMz
                                                 'precursorIntensity':intensity, #precursorIntensity
                                                 'mz array':mz_array, #mz array 
-<<<<<<< HEAD
-                                                'intensity array':intensity_array, 
-=======
                                                 'intensity array':intensity_array,
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
                                                 'filename': sorted_dict[index]['filename'],
                                                 'scan': sorted_dict[index]['id']} #intensity array
     return processed_dict
@@ -250,29 +218,17 @@ def create_pairs(binned_dict):
             for j in range(i+1, len(binned_dict[key])):
                 for scan, scan2 in zip(binned_dict[key][i].keys(), binned_dict[key][j].keys()):
                     thing1 = binned_dict[key][i][scan]['intensity array']
-<<<<<<< HEAD
-                    thing2 = binned_dict[key][j][scan2]['intensity array']                    
-                    if (np.count_nonzero(thing1) != 0) and (np.count_nonzero(thing2) != 0):
-                        low_max = np.max(thing1)
-                        high_max = np.max(thing2)
-                        
-=======
+
                     thing2 = binned_dict[key][j][scan2]['intensity array']
                     if (np.count_nonzero(thing1) != 0) and (np.count_nonzero(thing2) != 0):
                         low_max = np.max(thing1)
                         high_max = np.max(thing2)
 
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
                         low = np.true_divide(thing1, low_max)
                         high = np.true_divide(thing2, high_max)
 
                         low[low < 0.05] = 0.0
                         high[high < 0.05] = 0.0
-<<<<<<< HEAD
-                      
-=======
-
->>>>>>> b9d957a7a263a1a4b4a2a09c56a0348c680f8fa6
                         cos = 1 - cosine(low, high)
                         if cos >= 0.5 and cos < 1.0:
                             binned_dict[key][i][scan]['intensity array'] = low

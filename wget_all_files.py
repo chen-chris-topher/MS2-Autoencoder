@@ -29,12 +29,14 @@ for i,line in enumerate(f):
 files = np.unique(files).tolist()
 print(len(files))
 print("About to pull files")
+
 #first we get the first 6000
 exclusion_files =[]
 for filename in files: 
     if filename.split('/')[3] not in exclusion_files:
         new_name = filename.replace('/','_').replace(" ","_")
         new_name = destination_file + '/' + new_name
+        filename = filename.replace(' ','%20')
         filename ='ftp://massive.ucsd.edu/' + filename
         cmd = 'wget -O '+ new_name + ' ' + filename
  
